@@ -1,3 +1,5 @@
+import { readdir, rm } from "node:fs/promises";
+import path from "node:path";
 import { betterAuth } from "better-auth";
 import { testUtils } from "better-auth/plugins";
 import { inArray } from "drizzle-orm";
@@ -23,6 +25,11 @@ export async function createSignedInUser(): Promise<TestUser> {
 
 export async function deleteUsers(users: readonly TestUser[]): Promise<void> {
   if (users.length === 0) return;
+  await Promise.all(
+    users.map((u) =>
+      rm(path.resolve("storage", "uploads", u.id), { recursive: true, force: true }),
+    ),
+  );
   await db.delete(user).where(
     inArray(
       user.id,
@@ -43,4 +50,15 @@ export function jsonBody(method: string, body: unknown): RequestInit {
 
 export function idParams(id: string): { params: Promise<{ id: string }> } {
   return { params: Promise.resolve({ id }) };
+}
+
+export async function uploadedFiles(userId: string): Promise<string[]> {
+  return readdir(path.resolve("storage", "uploads", userId)).catch(() => []);
+}
+
+export function fileParams(
+  id: string,
+  kind: string,
+): { params: Promise<{ id: string; kind: string }> } {
+  return { params: Promise.resolve({ id, kind }) };
 }

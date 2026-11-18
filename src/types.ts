@@ -15,3 +15,29 @@ export interface Tender {
   createdAt: string;
   updatedAt: string;
 }
+
+export type CompanyFileKind = "letterhead" | "seal";
+
+export interface CompanyFile {
+  fileName: string;
+  size: number;
+  uploadedAt: string;
+}
+
+export interface CompanyFiles {
+  letterhead: CompanyFile | null;
+  seal: CompanyFile | null;
+}
+
+export interface Company {
+  id: string;
+  name: string;
+  files: CompanyFiles;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UploadRef {
+  key: string;
+  fileName: string;
+}
