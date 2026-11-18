@@ -36,16 +36,16 @@ A contractor makes a **quotation** (a price letter sent for a government tender)
 
 ## Status (update this after every feature)
 
-| Round | Feature                                                         | Status          |
-| ----- | --------------------------------------------------------------- | --------------- |
-| 0     | Project setup (copied from v2, `src/` layout, Neon, no git yet) | done 2026-11-18 |
-| 1     | Auth (Google sign-in) + sidebar shell                           | next            |
-| 2     | Companies (name, letterhead, seal)                              | —               |
-| 3     | Layouts + fonts list (the owner provides them)                  | —               |
-| 4     | Editor: top bar, form, live preview, zoom, save                 | —               |
-| 5     | Editor: full editing (edit/remove anything, seal, cover box)    | —               |
-| 6     | PDF download                                                    | —               |
-| Later | Notesheet (Word), signature, English                            | —               |
+| Round | Feature                                                                                           | Status          |
+| ----- | ------------------------------------------------------------------------------------------------- | --------------- |
+| 0     | Project setup (copied from v2, `src/` layout, Neon, GitHub repo `ankit-bhardwaj-123/tender-chat`) | done 2026-11-18 |
+| 1     | Auth (Google sign-in) + sidebar shell                                                             | next            |
+| 2     | Companies (name, letterhead, seal)                                                                | —               |
+| 3     | Layouts + fonts list (the owner provides them)                                                    | —               |
+| 4     | Editor: top bar, form, live preview, zoom, save                                                   | —               |
+| 5     | Editor: full editing (edit/remove anything, seal, cover box)                                      | —               |
+| 6     | PDF download                                                                                      | —               |
+| Later | Notesheet (Word), signature, English                                                              | —               |
 
 What exists now: config, packages, `src/app/layout.tsx`, a placeholder `src/app/page.tsx`, `src/components/ui/{sonner,tooltip}.tsx` and `src/lib/utils.ts`. There is no database schema, API or auth yet.
 

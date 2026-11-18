@@ -10,15 +10,11 @@
       "Bash(pnpm db:generate:*)",
       "Bash(git status)",
       "Bash(git diff:*)",
-      "Bash(git log:*)"
-    ],
-    "ask": [
-      "Bash(pnpm db:migrate:*)",
+      "Bash(git log:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Bash(pnpm add:*)",
-      "Bash(next upgrade:*)"
+      "Bash(git push:*)"
     ],
+    "ask": ["Bash(pnpm db:migrate:*)", "Bash(pnpm add:*)", "Bash(next upgrade:*)"],
     "deny": [
       "Read(./.env)",
       "Read(./.env.local)",
