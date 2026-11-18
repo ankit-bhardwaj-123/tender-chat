@@ -1,0 +1,13 @@
+# Dependency install scripts are blocked by default; list explicit decisions here.
+allowBuilds:
+  # Only downloads a fallback binary when prebuilt optional packages are missing.
+  unrs-resolver: false
+  # Both pulled in by next-intl (optional message-extraction tooling); prebuilt binaries
+  # ship as optional dependencies, the scripts are only build-from-source fallbacks.
+  "@parcel/watcher": false
+  "@swc/core": false
+  # Pulled in by drizzle-kit. The platform binary ships as an optional dependency; the
+  # script only verifies it (drizzle-kit generate works without it).
+  esbuild: false
+  # The script only prints a donation message (opencollective-postinstall).
+  tesseract.js: false

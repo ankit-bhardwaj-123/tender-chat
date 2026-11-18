@@ -1,0 +1,45 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# testing
+coverage/
+playwright-report/
+test-results/
+
+# env files (commit .env.example only)
+.env*
+!.env.example
+
+# local file storage (dev uploads) — never commit
+storage/
+
+# real tender PDFs for evals are confidential — never commit
+eval/data/
+eval/reports/
+
+# logs / os / editors
+*.log
+.DS_Store
+Thumbs.db
+*.pem
+.vercel
+
+# Claude Code personal settings
+.claude/settings.local.json
+
+route-map.html
+
+# Copied from node_modules by scripts/copy-reader-assets.mjs (postinstall)
+/public/pdfjs/
+/public/tessdata/
+/public/tesseract/
+/public/fonts/

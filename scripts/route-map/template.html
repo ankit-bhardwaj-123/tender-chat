@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Route Map</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --page: #eeeee9;
+        --panel: #f5f5f1;
+        --card: #fafaf6;
+        --foreground: #1f2329;
+        --muted: #e6e6e0;
+        --muted-foreground: #5f6670;
+        --primary: #2b59c3;
+        --accent: #e1e8f6;
+        --border: #dcdcd4;
+        --mono: ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-variant-ligatures: none;
+        font-feature-settings:
+          "calt" 0,
+          "liga" 0;
+        margin: 0;
+        background: var(--page);
+        color: var(--foreground);
+        font:
+          14px/1.5 Inter,
+          ui-sans-serif,
+          system-ui,
+          "Segoe UI",
+          sans-serif;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--border);
+        background: var(--panel);
+      }
+      h1 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .built {
+        color: var(--muted-foreground);
+        font-size: 12px;
+      }
+      .switch {
+        display: inline-flex;
+        padding: 3px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--muted);
+      }
+      .switch button {
+        padding: 5px 14px;
+        border: 0;
+        border-radius: 6px;
+        background: none;
+        color: var(--muted-foreground);
+        font: inherit;
+        cursor: pointer;
+      }
+      .switch button.on {
+        background: var(--card);
+        color: var(--foreground);
+        font-weight: 600;
+        box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
+      }
+      input[type="search"] {
+        width: 240px;
+        max-width: 100%;
+        margin-left: auto;
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--card);
+        color: inherit;
+        font: inherit;
+      }
+      main {
+        display: grid;
+        grid-template-columns: 290px 1fr;
+        height: calc(100vh - 55px);
+      }
+      aside,
+      .flow {
+        overflow: auto;
+      }
+      aside {
+        border-right: 1px solid var(--border);
+        background: var(--panel);
+      }
+      .title {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        padding: 9px 14px;
+        border-bottom: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--muted-foreground);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .route {
+        display: block;
+        width: 100%;
+        padding: 8px 14px;
+        border: 0;
+        border-bottom: 1px solid var(--border);
+        background: none;
+        color: inherit;
+        text-align: left;
+        font: inherit;
+        cursor: pointer;
+      }
+      .route:hover {
+        background: var(--muted);
+      }
+      .route.on {
+        background: var(--accent);
+      }
+      .route code {
+        display: block;
+        font-family: var(--mono);
+        font-size: 13px;
+        word-break: break-all;
+      }
+      .methods {
+        display: flex;
+        gap: 4px;
+        margin-top: 3px;
+      }
+      .method {
+        padding: 0 6px;
+        border-radius: 4px;
+        background: #dcefe3;
+        color: #1d6b45;
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .path {
+        color: var(--muted-foreground);
+        font-family: var(--mono);
+        font-size: 11px;
+        word-break: break-all;
+      }
+      .flow {
+        padding: 16px 20px 40px;
+      }
+      .flow-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 6px 12px;
+        margin-bottom: 14px;
+      }
+      .flow-head code {
+        font-family: var(--mono);
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .note {
+        color: var(--muted-foreground);
+        font-size: 12px;
+      }
+      .section {
+        margin: 18px 0 8px;
+        color: var(--muted-foreground);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .card {
+        margin-bottom: 14px;
+        padding: 14px 16px;
+        border: 1px solid var(--border);
+        border-left: 5px solid var(--role);
+        border-radius: 10px;
+        background: var(--card);
+        box-shadow: 0 1px 3px rgb(0 0 0 / 6%);
+      }
+      .card:last-child {
+        margin-bottom: 0;
+      }
+      .kids .card {
+        background: #f2f2ed;
+      }
+      .kids .kids .card {
+        background: var(--card);
+      }
+      .kids .kids .kids .card {
+        background: #f2f2ed;
+      }
+      .card-top {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 8px;
+      }
+      .role {
+        padding: 1px 8px;
+        border-radius: 999px;
+        background: var(--role-soft);
+        color: var(--role);
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .open {
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--foreground);
+        font: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .open:hover {
+        color: var(--primary);
+        text-decoration: underline;
+      }
+      .role-note {
+        margin-top: 1px;
+        color: var(--muted-foreground);
+        font-size: 12px;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px;
+        margin-top: 6px;
+      }
+      .row-label {
+        min-width: 64px;
+        color: var(--muted-foreground);
+        font-size: 12px;
+      }
+      .fn,
+      .table,
+      .need,
+      .api {
+        padding: 0 6px;
+        border-radius: 4px;
+        font-family: var(--mono);
+        font-size: 11.5px;
+      }
+      .fn {
+        background: var(--muted);
+      }
+      .table {
+        background: #dcefe3;
+        color: #1d6b45;
+      }
+      .need,
+      .api {
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--foreground);
+        cursor: pointer;
+      }
+      .need:hover,
+      .api:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+      }
+      .need i {
+        color: var(--role);
+        font-style: normal;
+        font-weight: 600;
+      }
+      .api {
+        color: var(--primary);
+      }
+      .kids {
+        margin-top: 16px;
+        padding: 14px 0 2px 20px;
+        border-top: 1px dashed var(--border);
+      }
+      .kids > .label {
+        margin-bottom: 10px;
+        color: var(--role);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+      }
+      .again {
+        margin-bottom: 8px;
+        color: var(--muted-foreground);
+        font-size: 12px;
+      }
+      .empty {
+        padding: 24px 4px;
+        color: var(--muted-foreground);
+      }
+      [data-role="route"],
+      [data-role="page"] {
+        --role: #2b59c3;
+        --role-soft: #e1e8f6;
+      }
+      [data-role="service"],
+      [data-role="component"] {
+        --role: #7a3fb0;
+        --role-soft: #efe5f8;
+      }
+      [data-role="repository"],
+      [data-role="hook"] {
+        --role: #1d6b45;
+        --role-soft: #dcefe3;
+      }
+      [data-role="schema"] {
+        --role: #0f6e75;
+        --role-soft: #d9eff0;
+      }
+      [data-role="adapter"],
+      [data-role="lib"] {
+        --role: #8a4b00;
+        --role-soft: #f7e8cf;
+      }
+      [data-role="server"],
+      [data-role="layout"],
+      [data-role="shared"],
+      [data-role="types"],
+      [data-role="ui"],
+      [data-role="other"],
+      [data-role="screen"] {
+        --role: #4f5560;
+        --role-soft: #e6e6e0;
+      }
+      dialog {
+        width: min(1100px, calc(100vw - 32px));
+        height: min(820px, calc(100vh - 48px));
+        padding: 0;
+        border: 1px solid #3c3c3c;
+        border-radius: 8px;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        box-shadow: 0 20px 60px rgb(0 0 0 / 35%);
+      }
+      dialog::backdrop {
+        background: rgb(20 22 26 / 45%);
+      }
+      .editor {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+      .tabs {
+        display: flex;
+        align-items: stretch;
+        background: #252526;
+      }
+      .tab {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-top: 2px solid #3794ff;
+        background: #1e1e1e;
+        color: #ffffff;
+        font-size: 13px;
+      }
+      .tab .lines {
+        color: #8b8b8b;
+        font-size: 12px;
+      }
+      .close {
+        margin-left: auto;
+        padding: 0 16px;
+        border: 0;
+        background: none;
+        color: #cccccc;
+        font-size: 20px;
+        cursor: pointer;
+      }
+      .close:hover {
+        background: #c42b1c;
+        color: #fff;
+      }
+      .crumbs {
+        padding: 3px 16px;
+        border-bottom: 1px solid #2b2b2b;
+        color: #a9a9a9;
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+      .code {
+        flex: 1;
+        overflow: auto;
+        margin: 0;
+        padding: 6px 0 24px;
+        font-family: var(--mono);
+        font-size: 13px;
+        line-height: 1.6;
+        tab-size: 2;
+      }
+      .ln {
+        display: flex;
+        min-width: max-content;
+      }
+      .ln:hover {
+        background: #2a2d2e;
+      }
+      .ln .no {
+        flex: none;
+        width: 56px;
+        padding-right: 18px;
+        color: #6e7681;
+        text-align: right;
+        user-select: none;
+      }
+      .ln .tx {
+        padding-right: 24px;
+        white-space: pre;
+      }
+      .ln.go {
+        cursor: pointer;
+      }
+      .ln.go .tx {
+        text-decoration: underline dotted #6e7681;
+      }
+      .k {
+        color: #569cd6;
+      }
+      .c {
+        color: #c586c0;
+      }
+      .s {
+        color: #ce9178;
+      }
+      .m {
+        color: #6a9955;
+      }
+      .n {
+        color: #b5cea8;
+      }
+      .f {
+        color: #dcdcaa;
+      }
+      .t {
+        color: #4ec9b0;
+      }
+      .v {
+        color: #9cdcfe;
+      }
+      .j {
+        color: #569cd6;
+      }
+      @media (max-width: 800px) {
+        main {
+          grid-template-columns: 1fr;
+          height: auto;
+        }
+        aside {
+          max-height: 45vh;
+          border-right: 0;
+          border-bottom: 1px solid var(--border);
+        }
+        input[type="search"] {
+          width: 100%;
+          margin-left: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>__TITLE__ route map</h1>
+      <div class="switch">
+        <button type="button" data-side="frontend">Frontend</button>
+        <button type="button" data-side="backend">Backend</button>
+      </div>
+      <span class="built" id="built"></span>
+      <input type="search" id="filter" placeholder="Filter routes…" />
+    </header>
+    <main>
+      <aside>
+        <div class="title" id="list-title">Routes</div>
+        <div id="routes"></div>
+      </aside>
+      <div class="flow" id="flow"><p class="empty">Pick a route on the left.</p></div>
+    </main>
+    <dialog id="viewer">
+      <div class="editor">
+        <div class="tabs">
+          <div class="tab">
+            <span id="tab-name"></span><span class="lines" id="tab-lines"></span>
+          </div>
+          <button type="button" class="close" id="close" aria-label="Close">×</button>
+        </div>
+        <div class="crumbs" id="crumbs"></div>
+        <pre class="code" id="code"></pre>
+      </div>
+    </dialog>
+    <script id="data" type="application/json">
+      __DATA__
+    </script>
+    <script>
+      const DATA = JSON.parse(document.getElementById("data").textContent);
+      const state = { side: "frontend", route: null, filter: "" };
+
+      const ROLE = {
+        route: ["route", "reads the request, checks login, calls the service"],
+        service: ["service", "business rules"],
+        repository: ["repository", "database queries"],
+        schema: ["database", "table definitions"],
+        adapter: ["adapter", "database connection, file storage, PDF printer"],
+        server: ["server helper", "session, errors, ownership checks"],
+        shared: ["shared", "request schemas and response mappers"],
+        types: ["types", "plain types"],
+        page: ["page", "the screen at this URL"],
+        layout: ["layout", "frame around the page"],
+        component: ["component", "part of the screen"],
+        hook: ["hook", "state and loading in the browser"],
+        lib: ["browser lib", "fetches the API and browser helpers"],
+        ui: ["ui kit", "button, input, dialog"],
+        other: ["other", ""],
+      };
+      const NEXT = {
+        route: ["service", "repository"],
+        service: ["service", "repository"],
+        page: ["component", "hook", "lib"],
+        layout: ["component", "hook", "lib"],
+        component: ["component", "hook", "lib"],
+        hook: ["hook", "lib"],
+      };
+      const NEXT_LABEL = {
+        route: "calls these services",
+        service: "uses these repositories and services",
+        page: "built from",
+        layout: "built from",
+        component: "built from",
+        hook: "uses",
+      };
+
+      const esc = (s) =>
+        String(s).replace(
+          /[&<>"']/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+        );
+      const base = (file) => file.split("/").pop();
+      const roleOf = (file) => DATA.files[file].layer;
+
+      document.getElementById("built").textContent =
+        "built " + new Date(DATA.built).toLocaleString();
+
+      function renderSwitch() {
+        for (const b of document.querySelectorAll(".switch button")) {
+          b.classList.toggle("on", b.dataset.side === state.side);
+        }
+        document.getElementById("list-title").textContent =
+          (state.side === "frontend" ? "Pages" : "API routes") +
+          " (" +
+          DATA[state.side].length +
+          ")";
+      }
+
+      function renderRoutes() {
+        const list = DATA[state.side].filter(
+          (r) => !state.filter || (r.path + " " + r.file).toLowerCase().includes(state.filter),
+        );
+        document.getElementById("routes").innerHTML = list.length
+          ? list
+              .map(
+                (r) =>
+                  `<button type="button" class="route${state.route === r.file ? " on" : ""}" data-route="${esc(r.file)}"><code>${esc(r.path)}</code>${
+                    r.methods.length
+                      ? `<span class="methods">${r.methods.map((m) => `<span class="method">${m}</span>`).join("")}</span>`
+                      : ""
+                  }<span class="path">${esc(r.file)}</span></button>`,
+              )
+              .join("")
+          : `<p class="empty">No routes match.</p>`;
+      }
+
+      function chainOf(roots) {
+        const seen = [];
+        const queue = [...roots];
+        while (queue.length) {
+          const file = queue.shift();
+          if (seen.includes(file) || !DATA.files[file]) continue;
+          seen.push(file);
+          queue.push(...DATA.files[file].imports);
+        }
+        return seen;
+      }
+
+      function chipsRow(label, items) {
+        return items.length
+          ? `<div class="row"><span class="row-label">${esc(label)}</span>${items.join("")}</div>`
+          : "";
+      }
+
+      function needChip(file) {
+        const role = roleOf(file);
+        return `<button type="button" class="need" data-role="${role}" data-file="${esc(file)}" title="${esc(file)}"><i>${esc(ROLE[role][0])}</i> ${esc(base(file))}</button>`;
+      }
+
+      function card(file, parent, seen, extra = "") {
+        const entry = DATA.files[file];
+        const role = entry.layer;
+        if (seen.has(file)) {
+          return `<div class="again">↑ <button type="button" class="need" data-role="${role}" data-file="${esc(file)}">${esc(base(file))}</button> is shown above</div>`;
+        }
+        seen.add(file);
+        const used = parent ? DATA.files[parent].uses[file] || [] : [];
+        const next = NEXT[role] || [];
+        const kids = entry.imports.filter((f) => next.includes(roleOf(f)));
+        const needs = entry.imports.filter((f) => !next.includes(roleOf(f)));
+        const tables = role === "repository" ? entry.uses["server/schema.ts"] || [] : [];
+        let html = `<div class="card" data-role="${role}"><div class="card-top"><span class="role">${esc(ROLE[role][0])}</span><button type="button" class="open" data-file="${esc(file)}">${esc(base(file))}</button><span class="path">${esc(file)}</span></div>`;
+        if (ROLE[role][1]) html += `<div class="role-note">${esc(ROLE[role][1])}</div>`;
+        html += extra;
+        html += chipsRow(
+          parent ? "uses" : "exports",
+          (parent ? used : []).map((n) => `<span class="fn">${esc(n)}</span>`),
+        );
+        html += chipsRow(
+          "tables",
+          tables
+            .filter((t) => !t.startsWith("*"))
+            .map((t) => `<span class="table">${esc(t)}</span>`),
+        );
+        html += chipsRow(
+          "calls API",
+          entry.api.map((a) =>
+            a.route
+              ? `<button type="button" class="api" data-api="${esc(a.route)}">${esc(a.route)}</button>`
+              : `<span class="fn">${esc(a.call)}</span>`,
+          ),
+        );
+        html += chipsRow("needs", needs.map(needChip));
+        if (kids.length) {
+          html += `<div class="kids"><div class="label">${esc(NEXT_LABEL[role])}</div>${kids.map((k) => card(k, file, seen)).join("")}</div>`;
+        }
+        return html + "</div>";
+      }
+
+      function screenCards(route, seen) {
+        const files = Object.keys(DATA.files).filter((f) =>
+          DATA.files[f].api.some((a) => a.route === route.path),
+        );
+        if (!files.length) return `<p class="note">No frontend file calls this route.</p>`;
+        return files
+          .map((file) => {
+            const pages = DATA.frontend
+              .filter((p) => chainOf(p.roots).includes(file))
+              .map(
+                (p) =>
+                  `<button type="button" class="api" data-page="${esc(p.file)}">${esc(p.path)}</button>`,
+              );
+            return `<div class="card" data-role="screen"><div class="card-top"><span class="role">screen</span><button type="button" class="open" data-file="${esc(file)}">${esc(base(file))}</button><span class="path">${esc(file)}</span></div>${chipsRow("on pages", pages)}</div>`;
+          })
+          .join("");
+      }
+
+      function renderFlow() {
+        const box = document.getElementById("flow");
+        const route = DATA[state.side].find((r) => r.file === state.route);
+        if (!route) {
+          box.innerHTML = `<p class="empty">Pick a route on the left.</p>`;
+          return;
+        }
+        const seen = new Set();
+        const count = chainOf(route.roots).length;
+        let html = `<div class="flow-head"><code>${esc(route.path)}</code>${route.methods.map((m) => `<span class="method">${m}</span>`).join("")}<span class="note">${count} files · click a file name to see its code</span></div>`;
+        if (state.side === "backend") {
+          html += `<div class="section">Called from the frontend</div>${screenCards(route, seen)}`;
+          html += `<div class="section">Backend flow</div>`;
+          html += card(
+            route.file,
+            null,
+            seen,
+            chipsRow(
+              "handlers",
+              route.methods.map((m) => `<span class="fn">${m}()</span>`),
+            ),
+          );
+        } else {
+          const [main, ...layouts] = route.roots;
+          html += `<div class="section">Page</div>${card(main, null, seen)}`;
+          if (layouts.length) {
+            html += `<div class="section">Layouts around this page</div>${layouts.map((l) => card(l, null, seen)).join("")}`;
+          }
+        }
+        box.innerHTML = html;
+        box.scrollTop = 0;
+      }
+
+      const CONTROL = new Set(
+        "import export from return if else for while do switch case break continue await async yield throw try catch finally default as new delete in of typeof instanceof void".split(
+          " ",
+        ),
+      );
+      const KEYWORD = new Set(
+        "const let var function class extends interface type enum implements public private protected readonly static true false null undefined this super keyof satisfies declare namespace".split(
+          " ",
+        ),
+      );
+      const TOKEN =
+        /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|(`(?:\\[\s\S]|[^`\\])*`|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*')|(<\/?[A-Za-z][\w.]*)|(\b\d[\d_.]*\b)|([A-Za-z_$][\w$]*)/g;
+
+      function highlight(src) {
+        const lines = [""];
+        const push = (text, cls) => {
+          text.split("\n").forEach((part, i) => {
+            if (i > 0) lines.push("");
+            if (part)
+              lines[lines.length - 1] += cls
+                ? `<span class="${cls}">${esc(part)}</span>`
+                : esc(part);
+          });
+        };
+        let last = 0;
+        for (const m of src.matchAll(TOKEN)) {
+          push(src.slice(last, m.index), "");
+          last = m.index + m[0].length;
+          if (m[1]) push(m[0], "m");
+          else if (m[2]) push(m[0], "s");
+          else if (m[3]) {
+            const slash = m[0].startsWith("</") ? 2 : 1;
+            push(m[0].slice(0, slash), "");
+            push(m[0].slice(slash), /^[A-Z]/.test(m[0].slice(slash)) ? "t" : "j");
+          } else if (m[4]) push(m[0], "n");
+          else {
+            const word = m[0];
+            const after = src.slice(last).match(/^\s*(.)/);
+            if (CONTROL.has(word)) push(word, "c");
+            else if (KEYWORD.has(word)) push(word, "k");
+            else if (after && after[1] === "(") push(word, "f");
+            else if (/^[A-Z][A-Z0-9_]+$/.test(word)) push(word, "v");
+            else if (/^[A-Z]/.test(word)) push(word, "t");
+            else push(word, "v");
+          }
+        }
+        push(src.slice(last), "");
+        return lines;
+      }
+
+      function importTarget(line, entry) {
+        const spec = (line.match(/from\s+["']([^"']+)["']/) ||
+          line.match(/^\s*import\s+["']([^"']+)["']/) ||
+          [])[1];
+        if (!spec) return null;
+        const tail = spec.replace(/^@\//, "").replace(/^(\.\.?\/)+/, "");
+        return (
+          entry.imports.find((t) => {
+            const bare = t.replace(/\.(tsx?|mjs|js)$/, "").replace(/\/index$/, "");
+            return (
+              bare === tail || bare.endsWith("/" + tail) || t === tail || t.endsWith("/" + tail)
+            );
+          }) || null
+        );
+      }
+
+      function openFile(file) {
+        const entry = DATA.files[file];
+        if (!entry) return;
+        document.getElementById("tab-name").textContent = base(file);
+        document.getElementById("tab-lines").textContent = entry.lines + " lines";
+        document.getElementById("crumbs").textContent = file.split("/").join("  ›  ");
+        const raw = entry.src.split("\n");
+        const colored = /\.(tsx?|mjs|js)$/.test(file) ? highlight(entry.src) : raw.map(esc);
+        document.getElementById("code").innerHTML = colored
+          .map((html, i) => {
+            const target = /^\s*(import|export)\b/.test(raw[i])
+              ? importTarget(raw[i], entry)
+              : null;
+            return `<div class="ln${target ? " go" : ""}"${target ? ` data-file="${esc(target)}" title="Open ${esc(target)}"` : ""}><span class="no">${i + 1}</span><span class="tx">${html || " "}</span></div>`;
+          })
+          .join("");
+        const viewer = document.getElementById("viewer");
+        if (!viewer.open) viewer.showModal();
+        document.getElementById("code").scrollTop = 0;
+      }
+
+      function render() {
+        renderSwitch();
+        renderRoutes();
+        renderFlow();
+        const hash = "#" + state.side + (state.route ? ":" + state.route : "");
+        if (location.hash !== hash) history.replaceState(null, "", hash);
+      }
+
+      function openRoute(side, file) {
+        document.getElementById("viewer").close();
+        state.side = side;
+        state.route = file;
+        render();
+      }
+
+      document.addEventListener("click", (event) => {
+        const viewer = document.getElementById("viewer");
+        if (event.target === viewer || event.target.closest("#close")) return viewer.close();
+        const side = event.target.closest("[data-side]");
+        if (side) {
+          state.side = side.dataset.side;
+          state.route = null;
+          return render();
+        }
+        const route = event.target.closest("[data-route]");
+        if (route) return openRoute(state.side, route.dataset.route);
+        const page = event.target.closest("[data-page]");
+        if (page) return openRoute("frontend", page.dataset.page);
+        const api = event.target.closest("[data-api]");
+        if (api) {
+          const hit = DATA.backend.find((r) => r.path === api.dataset.api);
+          if (hit) return openRoute("backend", hit.file);
+        }
+        const file = event.target.closest("[data-file]");
+        if (file) openFile(file.dataset.file);
+      });
+
+      document.getElementById("filter").addEventListener("input", (event) => {
+        state.filter = event.target.value.trim().toLowerCase();
+        renderRoutes();
+      });
+
+      const [side, route] = decodeURIComponent(location.hash.slice(1)).split(":");
+      if (side === "frontend" || side === "backend") state.side = side;
+      if (route && DATA[state.side].some((r) => r.file === route)) state.route = route;
+      render();
+    </script>
+  </body>
+</html>
