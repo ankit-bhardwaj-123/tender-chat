@@ -3,8 +3,11 @@ import * as fileRoute from "@/app/api/companies/[id]/files/[kind]/route";
 import * as companyRoute from "@/app/api/companies/[id]/route";
 import * as companiesRoute from "@/app/api/companies/route";
 import * as tenderRoute from "@/app/api/tenders/[id]/route";
+import * as templateFileRoute from "@/app/api/templates/[id]/file/route";
+import * as templateRoute from "@/app/api/templates/[id]/route";
+import * as templatesRoute from "@/app/api/templates/route";
 import * as tendersRoute from "@/app/api/tenders/route";
-import type { Company, Tender } from "@/types";
+import type { Company, Template, Tender } from "@/types";
 import {
   apiRequest,
   createSignedInUser,
@@ -19,6 +22,7 @@ let userA: TestUser;
 let userB: TestUser;
 let tenderOfA: Tender;
 let companyOfA: Company;
+let templateOfA: Template;
 
 beforeAll(async () => {
   [userA, userB] = await Promise.all([createSignedInUser(), createSignedInUser()]);
@@ -36,6 +40,14 @@ beforeAll(async () => {
     apiRequest(userA, "/x", { method: "PUT", body: form }),
     fileParams(companyOfA.id, "seal"),
   );
+  const templateForm = new FormData();
+  templateForm.append("name", "A private template");
+  templateForm.append("language", "hi");
+  templateForm.append("file", new File(["<p>{{officer}}</p>"], "a.html"));
+  const template = await templatesRoute.POST(
+    apiRequest(userA, "/api/templates", { method: "POST", body: templateForm }),
+  );
+  templateOfA = (await template.json()) as Template;
 });
 
 afterAll(async () => {
@@ -125,6 +137,51 @@ describe("one user can't reach another user's companies", () => {
 
   it("answers 401 with no login", async () => {
     const res = await fileRoute.GET(apiRequest(null, "/x"), fileParams(companyOfA.id, "seal"));
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("one user can't reach another user's templates", () => {
+  it("doesn't list A's template for B", async () => {
+    const res = await templatesRoute.GET(apiRequest(userB, "/api/templates"));
+    expect(res.status).toBe(200);
+    expect((await res.json()) as Template[]).toEqual([]);
+  });
+
+  it("answers 404 when B reads, edits or deletes A's template", async () => {
+    const path = `/api/templates/${templateOfA.id}`;
+    const read = await templateRoute.GET(apiRequest(userB, path), idParams(templateOfA.id));
+    const edit = await templateRoute.PATCH(
+      apiRequest(userB, path, jsonBody("PATCH", { name: "Taken", language: "en" })),
+      idParams(templateOfA.id),
+    );
+    const remove = await templateRoute.DELETE(
+      apiRequest(userB, path, { method: "DELETE" }),
+      idParams(templateOfA.id),
+    );
+    expect([read.status, edit.status, remove.status]).toEqual([404, 404, 404]);
+
+    const stillThere = await templateRoute.GET(apiRequest(userA, path), idParams(templateOfA.id));
+    const own = (await stillThere.json()) as Template;
+    expect([own.name, own.language]).toEqual(["A private template", "hi"]);
+  });
+
+  it("answers 404 when B opens or replaces A's template file", async () => {
+    const open = await templateFileRoute.GET(apiRequest(userB, "/x"), idParams(templateOfA.id));
+    const form = new FormData();
+    form.append("file", new File(["<p>{{taken}}</p>"], "b.html"));
+    const replace = await templateFileRoute.PUT(
+      apiRequest(userB, "/x", { method: "PUT", body: form }),
+      idParams(templateOfA.id),
+    );
+    expect([open.status, replace.status]).toEqual([404, 404]);
+
+    const own = await templateFileRoute.GET(apiRequest(userA, "/x"), idParams(templateOfA.id));
+    expect(await own.text()).toBe("<p>{{officer}}</p>");
+  });
+
+  it("answers 401 with no login", async () => {
+    const res = await templateFileRoute.GET(apiRequest(null, "/x"), idParams(templateOfA.id));
     expect(res.status).toBe(401);
   });
 });

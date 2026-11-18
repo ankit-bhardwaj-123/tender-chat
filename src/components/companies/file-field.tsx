@@ -13,7 +13,8 @@ export interface SavedFile {
 
 interface FileFieldProps {
   label: string;
-  accept: "pdf" | "jpg";
+  accept: "pdf" | "jpg" | "html";
+  removable?: boolean;
   file: File | null;
   saved: SavedFile | null;
   onChange: (file: File | null) => void;
@@ -31,6 +32,7 @@ interface ShownFile {
 const ACCEPT = {
   pdf: { attribute: ".pdf,application/pdf", hint: "PDF" },
   jpg: { attribute: ".jpg,.jpeg,image/jpeg", hint: "JPG" },
+  html: { attribute: ".html,.htm,text/html", hint: "HTML" },
 };
 
 function fileSize(bytes: number): string {
@@ -47,6 +49,7 @@ export function FileField({
   onChange,
   onRemoveSaved,
   disabled,
+  removable = true,
 }: FileFieldProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -100,16 +103,18 @@ export function FileField({
           <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={pick}>
             Replace
           </Button>
-          <IconButton
-            type="button"
-            label={`Remove ${label}`}
-            size="icon-sm"
-            className="text-muted-foreground"
-            disabled={disabled}
-            onClick={() => (file ? onChange(null) : onRemoveSaved())}
-          >
-            <X />
-          </IconButton>
+          {(file || removable) && (
+            <IconButton
+              type="button"
+              label={`Remove ${label}`}
+              size="icon-sm"
+              className="text-muted-foreground"
+              disabled={disabled}
+              onClick={() => (file ? onChange(null) : onRemoveSaved())}
+            >
+              <X />
+            </IconButton>
+          )}
         </div>
       ) : (
         <button

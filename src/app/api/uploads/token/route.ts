@@ -5,6 +5,14 @@ import { handle } from "@/server/http";
 import { requireUserId } from "@/server/session";
 import { checkUploadPath } from "@/services/upload.service";
 
+function readKind(clientPayload: string | null): unknown {
+  try {
+    return (JSON.parse(clientPayload ?? "null") as { kind?: unknown } | null)?.kind;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   return handle(async () => {
     const userId = await requireUserId(request);
@@ -19,8 +27,8 @@ export async function POST(request: Request) {
       body,
       request,
       token: env.BLOB_READ_WRITE_TOKEN,
-      onBeforeGenerateToken: async (pathname) => ({
-        ...checkUploadPath(userId, pathname),
+      onBeforeGenerateToken: async (pathname, clientPayload) => ({
+        ...checkUploadPath(userId, readKind(clientPayload), pathname),
         addRandomSuffix: false,
         allowOverwrite: false,
       }),

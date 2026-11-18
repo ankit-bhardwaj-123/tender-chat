@@ -41,3 +41,18 @@ export interface UploadRef {
   key: string;
   fileName: string;
 }
+
+export type UploadKind = "companyFile" | "template";
+
+export type TemplateLanguage = "hi" | "en";
+
+export interface Template {
+  id: string;
+  name: string;
+  language: TemplateLanguage;
+  fileName: string;
+  size: number;
+  placeholders: string[];
+  createdAt: string;
+  updatedAt: string;
+}

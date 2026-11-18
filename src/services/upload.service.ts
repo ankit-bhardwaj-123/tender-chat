@@ -4,7 +4,7 @@ import { contentTypeOfKey } from "@/server/adapters/blob-storage";
 import { storage } from "@/server/adapters/file-storage";
 import { invalid } from "@/server/errors";
 import { reportError } from "@/server/report-error";
-import type { UploadRef } from "@/types";
+import type { UploadKind, UploadRef } from "@/types";
 
 export interface UploadedFile {
   key: string;
@@ -17,8 +17,18 @@ export interface UploadTokenLimits {
   allowedContentTypes: string[];
 }
 
-export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-const EXTENSIONS: readonly string[] = ["pdf", "jpg", "jpeg"];
+export interface UploadLimit {
+  maxBytes: number;
+  extensions: readonly string[];
+}
+
+const MB = 1024 * 1024;
+
+export const UPLOAD_LIMITS: Record<UploadKind, UploadLimit> = {
+  companyFile: { maxBytes: 10 * MB, extensions: ["pdf", "jpg", "jpeg"] },
+  template: { maxBytes: 2 * MB, extensions: ["html", "htm"] },
+};
+
 const KEY_PATTERN = /^uploads\/([0-9a-f-]{36})\/[0-9a-f-]{36}\.([a-z0-9]{1,5})$/;
 const FILE_NAME_MAX_LENGTH = 1000;
 
@@ -26,26 +36,43 @@ function extensionOf(fileName: string): string | null {
   return fileName.toLowerCase().match(/\.([a-z0-9]{1,5})$/)?.[1] ?? null;
 }
 
-export function uploadKey(userId: string, fileName: string): string {
+export function isUploadKind(value: unknown): value is UploadKind {
+  return typeof value === "string" && Object.hasOwn(UPLOAD_LIMITS, value);
+}
+
+export function uploadKey(userId: string, kind: UploadKind, fileName: string): string {
+  const allowed = UPLOAD_LIMITS[kind].extensions;
   const extension = extensionOf(fileName);
-  const chosen = extension && EXTENSIONS.includes(extension) ? extension : EXTENSIONS[0];
+  const chosen = extension && allowed.includes(extension) ? extension : allowed[0];
   return `uploads/${userId}/${randomUUID()}.${chosen}`;
 }
 
-export function checkUploadPath(userId: string, pathname: string): UploadTokenLimits {
+export function checkUploadPath(
+  userId: string,
+  kind: unknown,
+  pathname: string,
+): UploadTokenLimits {
+  if (!isUploadKind(kind)) {
+    throw invalid("Unknown upload kind.");
+  }
+  const limit = UPLOAD_LIMITS[kind];
   const match = pathname.match(KEY_PATTERN);
-  if (!match || match[1] !== userId || !EXTENSIONS.includes(match[2] ?? "")) {
+  if (!match || match[1] !== userId || !limit.extensions.includes(match[2] ?? "")) {
     throw invalid("This upload path is not allowed.");
   }
   return {
-    maximumSizeInBytes: MAX_UPLOAD_BYTES,
-    allowedContentTypes: [...new Set(EXTENSIONS.map((ext) => contentTypeOfKey(`f.${ext}`)))],
+    maximumSizeInBytes: limit.maxBytes,
+    allowedContentTypes: [...new Set(limit.extensions.map((ext) => contentTypeOfKey(`f.${ext}`)))],
   };
 }
 
-export async function receiveUpload(userId: string, file: File | UploadRef): Promise<UploadedFile> {
+export async function receiveUpload(
+  userId: string,
+  kind: UploadKind,
+  file: File | UploadRef,
+): Promise<UploadedFile> {
   if (file instanceof File) {
-    const key = uploadKey(userId, file.name);
+    const key = uploadKey(userId, kind, file.name);
     await storage.save(key, file);
     return { key, fileName: file.name, size: file.size };
   }
@@ -68,6 +95,10 @@ export async function readUploadHead(upload: UploadedFile, bytes: number): Promi
   const end = Math.min(bytes, upload.size) - 1;
   const stream = await storage.read(upload.key, { start: 0, end });
   return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+export async function readUploadBytes(upload: UploadedFile): Promise<Uint8Array> {
+  return new Uint8Array(await (await storage.open(upload.key)).arrayBuffer());
 }
 
 export async function discardUpload(upload: UploadedFile): Promise<void> {

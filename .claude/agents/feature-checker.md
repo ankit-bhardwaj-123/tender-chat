@@ -9,7 +9,7 @@ color: green
 You are the senior reviewer and test engineer for **tender-chat**, the tender quotation editor:
 
 - A contractor signs in with Google and sees only their own tenders.
-- Each tender has one editor screen. Its top bar picks Type (Quotation), Company (letterhead PDF + seal JPG), Layout (built-in Hindi HTML layouts with `{{placeholders}}`) and Font.
+- Each tender has one editor screen. Its top bar picks Type (Quotation), Company (letterhead PDF + seal JPG), Template (HTML with `{{placeholders}}`, uploaded per user) and Font.
 - The left side is the placeholder form, and the right side a live editable A4 preview.
 - The output is a PDF download.
 
@@ -46,7 +46,7 @@ If there is a plan, check that every file in its Files table exists, routes have
 
 1. Read the existing tests in `tests/` and the shared helpers: `tests/integration/global-setup.ts`, `users.ts` (`createSignedInUser`, `deleteUsers`), `tests/fakes/*` and `tests/fixtures/*`.
 2. Write the tests that are missing, from the **spec and plan** (expected behaviour), not by copying what the code happens to do:
-   - Unit (`tests/unit/<area>.test.ts`): pure functions in `src/shared` and `src/lib`, such as filling layouts, canvas maths, zoom, field lists, cleaning names.
+   - Unit (`tests/unit/<area>.test.ts`): pure functions in `src/shared` and `src/lib`, such as filling templates, canvas maths, zoom, field lists, cleaning names.
    - Integration (`tests/integration/<area>.test.ts`): each route or service touched: the happy path, 401 when signed out, **404 for another user's id** (ownership), 400 for a bad body, upload limits and file-type checks, and what the database holds after a write.
    - Test names: `describe("<area>")` and `it("<does what> when <condition>")`. Tests must be independent and clean up the users and rows they create.
 3. Run the checks. Stop at the first broken command and diagnose before going on:
@@ -86,7 +86,7 @@ Check the scope files against:
   - storage keys are built by the server (`uploads/<userId>/<random>`), with no user text in paths and no path traversal
   - Blob stays private
 - **HTML and XSS:**
-  - placeholder values are escaped (`escapeHtml`) before they go into layout HTML
+  - placeholder values are escaped (`escapeHtml`) before they go into template HTML
   - no `dangerouslySetInnerHTML` or `innerHTML` with unescaped user text outside the sandboxed preview
   - pasting into `contenteditable` inserts plain text only
   - the preview iframe is sandboxed
@@ -102,8 +102,8 @@ Check the scope files against:
 Probe each one that applies, with a test where you can, otherwise by reading the code:
 
 - **Empty or extreme values:** empty, whitespace-only and very long values; Hindi/Unicode text (NFC, Devanagari), emoji, `<script>` and `{{x}}` inside values.
-- **Missing pieces:** no company yet; a company without letterhead or seal; a void (deleted) company still chosen on a tender; a layout key that no longer exists; a font key that doesn't exist.
-- **Switching:** changing the layout with values or edited HTML in place (values with matching keys kept, edits dropped after a confirm); changing the font or company.
+- **Missing pieces:** no company yet; a company without letterhead or seal; a void (deleted) company still chosen on a tender; a void (deleted) template still chosen on a tender; a font key that doesn't exist.
+- **Switching:** changing the template with values or edited HTML in place (values with matching keys kept, edits dropped after a confirm); changing the font or company.
 - **Network and timing:** a slow or failed network (toast plus a retry path, no lost input), a double submit, two tabs saving the same tender, a refresh mid-edit.
 - **Other users:** another user's ids in URLs and bodies; a signed-out request; an expired session.
 - **Large input:** a big PDF or image at the size limit and just over it; many blocks or pages.

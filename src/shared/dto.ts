@@ -1,4 +1,11 @@
-import type { Company, CompanyFile, CompanyFileKind, Tender } from "@/types";
+import type {
+  Company,
+  CompanyFile,
+  CompanyFileKind,
+  Template,
+  TemplateLanguage,
+  Tender,
+} from "@/types";
 
 export interface TenderDbRow {
   id: string;
@@ -49,6 +56,30 @@ export function toCompany(row: CompanyDbRow, files: readonly CompanyFileDbRow[])
       letterhead: toCompanyFile(own.find((file) => file.kind === "letterhead")),
       seal: toCompanyFile(own.find((file) => file.kind === "seal")),
     },
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+export interface TemplateDbRow {
+  id: string;
+  name: string;
+  language: TemplateLanguage;
+  fileName: string;
+  sizeBytes: number;
+  placeholders: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export function toTemplate(row: TemplateDbRow): Template {
+  return {
+    id: row.id,
+    name: row.name,
+    language: row.language,
+    fileName: row.fileName,
+    size: row.sizeBytes,
+    placeholders: row.placeholders,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

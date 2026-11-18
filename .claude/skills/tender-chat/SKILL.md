@@ -14,25 +14,25 @@ A contractor makes a **quotation** (a price letter sent for a government tender)
 3. In the editor's top bar they pick, in order:
    - **Type**: Quotation (Notesheet comes later, as Word)
    - **Company**: a name, a letterhead PDF and a seal JPG
-   - **Layout**: one of 4–5 ready Hindi letter designs
+   - **Template**: one of their uploaded HTML letter designs (Hindi or English)
    - **Font**: one of 10 Hindi fonts
 
    The first option of each is picked automatically.
 
-4. The left side is a **form** with one box per **placeholder** (a `{{name}}` blank in the layout). The right side is a **live preview** of the A4 page that updates as they type.
-5. In the preview they can zoom, add text and images, and edit or remove anything: layout text, values, the seal, or the letterhead (turn it off or cover parts of it).
+4. The left side is a **form** with one box per **placeholder** (a `{{name}}` blank in the template). The right side is a **live preview** of the A4 page that updates as they type.
+5. In the preview they can zoom, add text and images, and edit or remove anything: template text, values, the seal, or the letterhead (turn it off or cover parts of it).
 6. They click **Download PDF**.
 
 ## Words we use
 
-| Word         | Meaning                                                                                                                                          |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Tender       | One job the contractor quotes for. A name plus its saved editor state.                                                                           |
-| Company      | A contractor's firm: name, letterhead (PDF), seal (JPG).                                                                                         |
-| Layout       | A built-in Hindi HTML letter with `{{placeholders}}`, plus its field list (key, Hindi label, type). The same for all users; lives in `layouts/`. |
-| Placeholder  | A blank like `{{officer_name}}` that the form fills.                                                                                             |
-| Canvas block | Something placed on top of the page: text, image, the seal, or a cover box. Positions are in mm.                                                 |
-| Custom HTML  | The tender's own edited copy of the layout text. The original layout never changes.                                                              |
+| Word         | Meaning                                                                                                                                            |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tender       | One job the contractor quotes for. A name plus its saved editor state.                                                                             |
+| Company      | A contractor's firm: name, letterhead (PDF), seal (JPG).                                                                                           |
+| Template     | An HTML letter with `{{placeholders}}` that a user uploads with a name and language. Each user has their own; placeholders are read from the HTML. |
+| Placeholder  | A blank like `{{officer_name}}` that the form fills.                                                                                               |
+| Canvas block | Something placed on top of the page: text, image, the seal, or a cover box. Positions are in mm.                                                   |
+| Custom HTML  | The tender's own edited copy of the template text. The original template never changes.                                                            |
 
 ## Status (update this after every feature)
 
@@ -41,10 +41,11 @@ A contractor makes a **quotation** (a price letter sent for a government tender)
 | 0     | Project setup (copied from v2, `src/` layout, Neon, GitHub repo `ankit-bhardwaj-123/tender-chat`) | done 2026-11-18 |
 | 1     | Auth (Google sign-in) + sidebar shell                                                             | next            |
 | 2     | Companies (name, letterhead, seal)                                                                | —               |
-| 3     | Layouts + fonts list (the owner provides them)                                                    | —               |
-| 4     | Editor: top bar, form, live preview, zoom, save                                                   | —               |
-| 5     | Editor: full editing (edit/remove anything, seal, cover box)                                      | —               |
-| 6     | PDF download                                                                                      | —               |
+| 3     | Templates page (name, language, HTML)                                                             | —               |
+| 4     | Fonts list (the owner provides them)                                                              | —               |
+| 5     | Editor: top bar, form, live preview, zoom, save                                                   | —               |
+| 6     | Editor: full editing (edit/remove anything, seal, cover box)                                      | —               |
+| 7     | PDF download                                                                                      | —               |
 | Later | Notesheet (Word), signature, English                                                              | —               |
 
 What exists now: config, packages, `src/app/layout.tsx`, a placeholder `src/app/page.tsx`, `src/components/ui/{sonner,tooltip}.tsx` and `src/lib/utils.ts`. There is no database schema, API or auth yet.
@@ -58,7 +59,7 @@ What exists now: config, packages, `src/app/layout.tsx`, a placeholder `src/app/
 - `src/repositories`: database queries
 - `src/server`: schema, auth, http helpers and adapters
 - `src/shared`: code used by both the browser and the server
-- At the root: `layouts/`, `drizzle/` (migrations), `public/`, `scripts/` (route-map, copy-reader-assets), `tests/` (unit, integration, contract)
+- At the root: `drizzle/` (migrations), `public/`, `scripts/` (route-map, copy-reader-assets), `tests/` (unit, integration, contract)
 - `@/*` points to `src/*`.
 
 ## How a request flows

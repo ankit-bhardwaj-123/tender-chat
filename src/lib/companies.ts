@@ -46,7 +46,7 @@ export async function uploadCompanyFile(
   file: File,
 ): Promise<Company> {
   const res = await sendWithFiles(companyFileUrl(companyId, kind), "PUT", {}, [
-    { name: "file", file },
+    { name: "file", kind: "companyFile", file },
   ]);
   return readCompany(res);
 }

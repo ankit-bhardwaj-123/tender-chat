@@ -1,12 +1,18 @@
 import { eq } from "drizzle-orm";
 import { db as defaultDb, type Executor } from "@/server/adapters/postgres";
-import { companyFile } from "@/server/schema";
+import { companyFile, template } from "@/server/schema";
 
 export async function isStorageKeyUsed(key: string, db: Executor = defaultDb): Promise<boolean> {
-  const rows = await db
+  const companyRows = await db
     .select({ id: companyFile.companyId })
     .from(companyFile)
     .where(eq(companyFile.storageKey, key))
     .limit(1);
-  return rows.length > 0;
+  if (companyRows.length > 0) return true;
+  const templateRows = await db
+    .select({ id: template.id })
+    .from(template)
+    .where(eq(template.storageKey, key))
+    .limit(1);
+  return templateRows.length > 0;
 }

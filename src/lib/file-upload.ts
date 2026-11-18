@@ -1,14 +1,18 @@
 import { upload } from "@vercel/blob/client";
-import type { UploadRef } from "@/types";
+import type { UploadKind, UploadRef } from "@/types";
 
 export interface UploadPart {
   name: string;
+  kind: UploadKind;
   file: File;
 }
 
 const USES_BLOB = process.env.NEXT_PUBLIC_FILE_STORE === "blob";
 
-const EXTENSIONS: readonly string[] = ["pdf", "jpg", "jpeg"];
+const EXTENSIONS: Record<UploadKind, readonly string[]> = {
+  companyFile: ["pdf", "jpg", "jpeg"],
+  template: ["html", "htm"],
+};
 
 let userIdRequest: Promise<string> | null = null;
 
@@ -30,8 +34,8 @@ async function currentUserId(): Promise<string> {
   }
 }
 
-function uploadPath(userId: string, fileName: string): string {
-  const allowed = EXTENSIONS;
+function uploadPath(userId: string, kind: UploadKind, fileName: string): string {
+  const allowed = EXTENSIONS[kind];
   const extension = fileName.toLowerCase().match(/\.([a-z0-9]{1,5})$/)?.[1];
   const chosen = extension && allowed.includes(extension) ? extension : allowed[0];
   return `uploads/${userId}/${crypto.randomUUID()}.${chosen}`;
@@ -54,9 +58,10 @@ async function sendToBlob(
   try {
     const userId = await currentUserId();
     for (const part of parts) {
-      const stored = await upload(uploadPath(userId, part.file.name), part.file, {
+      const stored = await upload(uploadPath(userId, part.kind, part.file.name), part.file, {
         access: "private",
         handleUploadUrl: "/api/uploads/token",
+        clientPayload: JSON.stringify({ kind: part.kind }),
         onUploadProgress: (event) =>
           onProgress(Math.floor(((doneBytes + event.loaded) / total) * 100)),
       });

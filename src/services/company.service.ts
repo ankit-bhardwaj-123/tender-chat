@@ -17,8 +17,8 @@ import { reportError } from "@/server/report-error";
 import { toCompany } from "@/shared/dto";
 import {
   discardUpload,
-  MAX_UPLOAD_BYTES,
   readUploadHead,
+  UPLOAD_LIMITS,
   type UploadedFile,
 } from "@/services/upload.service";
 import type { Company, CompanyFileKind } from "@/types";
@@ -39,6 +39,7 @@ interface FileRule {
 const NOT_FOUND = "Company not found.";
 const FILE_NOT_FOUND = "File not found.";
 const FILE_NAME_MAX_LENGTH = 200;
+const MAX_FILE_BYTES = UPLOAD_LIMITS.companyFile.maxBytes;
 
 const FILE_RULES: Record<CompanyFileKind, FileRule> = {
   letterhead: {
@@ -66,8 +67,8 @@ async function checkFileType(upload: UploadedFile, kind: CompanyFileKind): Promi
   if (upload.size === 0) {
     throw invalid("The file is empty.");
   }
-  if (upload.size > MAX_UPLOAD_BYTES) {
-    throw invalid(`A file must be at most ${MAX_UPLOAD_BYTES / 1024 / 1024} MB.`);
+  if (upload.size > MAX_FILE_BYTES) {
+    throw invalid(`A file must be at most ${MAX_FILE_BYTES / 1024 / 1024} MB.`);
   }
   const rule = FILE_RULES[kind];
   const head = await readUploadHead(upload, rule.signature.length);

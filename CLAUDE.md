@@ -2,7 +2,7 @@
 
 # Tender quotation editor (tender-chat)
 
-A contractor signs in with Google and sees only their own tenders. A tender is a name plus one editor screen: the top bar picks Type (Quotation; Notesheet later) → Company (letterhead PDF + seal JPG) → Layout (4–5 built-in Hindi HTML layouts) → Font; the left side is the placeholder form of the chosen layout, the right side a live editable A4 preview; the output is a PDF download. Read `PROJECT-PLAN.md` for scope, decisions, the reuse map from `../tender-chat-v2` and the build rounds.
+A contractor signs in with Google and sees only their own tenders. A tender is a name plus one editor screen: the top bar picks Type (Quotation; Notesheet later) → Company (letterhead PDF + seal JPG) → Template (HTML with `{{placeholders}}`, uploaded by each user on the Templates page) → Font; the left side is the placeholder form of the chosen template, the right side a live editable A4 preview; the output is a PDF download. Read `PROJECT-PLAN.md` for scope, decisions, the reuse map from `../tender-chat-v2` and the build rounds.
 
 ## Rules from the owner
 
@@ -33,7 +33,7 @@ The database is Neon Postgres (no Docker). The owner puts the Neon `DATABASE_URL
 
 ## Folders
 
-Next.js `src/` layout: `src/app` (pages, `api/**/route.ts`), `src/components`, `src/lib`, and later `src/services`, `src/repositories`, `src/server`, `src/shared`. `@/*` points to `src/*`. Config files, `public/`, `scripts/`, `tests/`, `layouts/` and `drizzle/` stay at the root.
+Next.js `src/` layout: `src/app` (pages, `api/**/route.ts`), `src/components`, `src/lib`, and later `src/services`, `src/repositories`, `src/server`, `src/shared`. `@/*` points to `src/*`. Config files, `public/`, `scripts/`, `tests/` and `drizzle/` stay at the root.
 
 ## Checks
 

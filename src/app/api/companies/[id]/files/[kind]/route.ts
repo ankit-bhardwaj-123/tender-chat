@@ -50,7 +50,7 @@ export async function PUT(request: Request, ctx: FileParams) {
     const userId = await requireUserId(request);
     const { companyId, kind } = await readTarget(ctx);
     const { files } = await readUploads(request, { file: "The form has no file." });
-    const upload = await receiveUpload(userId, files.file);
+    const upload = await receiveUpload(userId, "companyFile", files.file);
     return Response.json(await uploadCompanyFile(userId, companyId, kind, upload));
   });
 }

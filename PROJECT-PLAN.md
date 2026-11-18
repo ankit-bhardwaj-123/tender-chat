@@ -4,33 +4,33 @@ Status: agreed scope as of 2026-11-18. Nothing is built yet. This file says **wh
 
 ## 1. What the app is
 
-A contractor signs in with Google and sees only their own tenders. A tender is a **name plus one editor screen**: choose type, company, layout and font at the top, fill the placeholder form on the left, see and edit a live A4 preview on the right, and download a PDF.
+A contractor signs in with Google and sees only their own tenders. A tender is a **name plus one editor screen**: choose type, company, template and font at the top, fill the placeholder form on the left, see and edit a live A4 preview on the right, and download a PDF.
 
 Built now: **Quotation, Hindi, PDF preview and PDF download.**
 Later: Notesheet (Word preview and Word download), signature image, the final 10-font list.
 
 ## 2. Scope
 
-| Now                                                         | Later                                 |
-| ----------------------------------------------------------- | ------------------------------------- |
-| Google sign-in, tenders separated per user                  | Email/password, email sending         |
-| Sidebar: search, new tender, tender list, user menu         | —                                     |
-| Companies: name, letterhead (PDF), seal (JPG)               | Signature image, more company details |
-| 4–5 built-in Hindi quotation layouts for all users          | Notesheet layouts, English            |
-| Font dropdown (10 fonts, list given by the owner later)     | —                                     |
-| Placeholder form from the chosen layout                     | —                                     |
-| Live preview: zoom, add text/image, edit or remove anything | —                                     |
-| PDF download                                                | Word preview and download (Notesheet) |
+| Now                                                              | Later                                 |
+| ---------------------------------------------------------------- | ------------------------------------- |
+| Google sign-in, tenders separated per user                       | Email/password, email sending         |
+| Sidebar: search, new tender, tender list, user menu              | —                                     |
+| Companies: name, letterhead (PDF), seal (JPG)                    | Signature image, more company details |
+| Templates page: each user uploads HTML templates (Hindi/English) | Notesheet templates                   |
+| Font dropdown (10 fonts, list given by the owner later)          | —                                     |
+| Placeholder form from the chosen template                        | —                                     |
+| Live preview: zoom, add text/image, edit or remove anything      | —                                     |
+| PDF download                                                     | Word preview and download (Notesheet) |
 
-Not in this project: tender document upload, PDF/Word reading, OCR, auto-fill, rate table, steps bar, template upload page, AI.
+Not in this project: tender document upload, PDF/Word reading, OCR, auto-fill, rate table, steps bar, template PDF, AI.
 
 ## 3. Screen
 
 ```
-┌ Sidebar ─────────┬ [Type ▼] [Company ▼] [Layout ▼] [Font ▼] ─────────────────┐
+┌ Sidebar ─────────┬ [Type ▼] [Company ▼] [Template ▼] [Font ▼] ─────────────────┐
 │ Search tenders   │ LEFT: placeholder form       │ RIGHT: live A4 preview    │
-│ + New tender     │ fields of the chosen layout  │ letterhead + seal +       │
-│ Tender A         │ (Hindi labels)               │ filled layout + blocks    │
+│ + New tender     │ fields of the chosen template  │ letterhead + seal +       │
+│ Tender A         │ (one box per placeholder)    │ filled template + blocks    │
 │ Tender B         │                              │ zoom · fit · add text ·   │
 │ ...              │                              │ add image · edit/remove   │
 │ User ▾ Profile · │                              │ any text or image         │
@@ -41,22 +41,22 @@ Not in this project: tender document upload, PDF/Word reading, OCR, auto-fill, r
 
 ### Top bar, in this order
 
-| #   | Dropdown | Options                                             | Default       |
-| --- | -------- | --------------------------------------------------- | ------------- |
-| 1   | Type     | Quotation; Notesheet shown disabled ("coming soon") | Quotation     |
-| 2   | Company  | The user's active companies                         | First company |
-| 3   | Layout   | The 4–5 quotation layouts                           | First layout  |
-| 4   | Font     | 10 fonts                                            | First font    |
+| #   | Dropdown | Options                                             | Default        |
+| --- | -------- | --------------------------------------------------- | -------------- |
+| 1   | Type     | Quotation; Notesheet shown disabled ("coming soon") | Quotation      |
+| 2   | Company  | The user's active companies                         | First company  |
+| 3   | Template | The user's active templates                         | First template |
+| 4   | Font     | 10 fonts                                            | First font     |
 
-Options 2–4 depend on the type. When Notesheet arrives, they switch to notesheet companies, layouts and fonts.
+Options 2–4 depend on the type. When Notesheet arrives, they switch to notesheet companies, templates and fonts.
 
 ## 4. Key decisions
 
-1. **Layouts are HTML, output is PDF.** The owner gives each layout as Hindi HTML with `{{placeholders}}`. The browser fills it for the preview, and the server prints the same HTML to PDF with Chrome (as v2 does). Because the preview is HTML, every word and image can be edited, and one font setting can restyle the whole page.
-2. **Layouts are built in.** There are 4–5 for every user, stored in the repo (`layouts/`), with no table and no upload page. A tender stores the layout's key.
-3. **Each layout comes with its field list.** The list gives each placeholder's key, Hindi label, order and input type (text, date, number, price), and the left form is drawn from it. Placeholders differ per layout and sit in different places.
-4. **Everything on the page is editable or removable**, whether it comes from the layout, a placeholder value, or the company:
-   - Layout text and images: edited in place (`contenteditable`). The edits are saved as the tender's own copy of the HTML, and the original layout never changes. A "Reset layout text" button discards them.
+1. **Templates are HTML, output is PDF.** Each template is an HTML file (Hindi or English) with `{{placeholders}}`. The browser fills it for the preview, and the server prints the same HTML to PDF with Chrome (as v2 does). Because the preview is HTML, every word and image can be edited, and one font setting can restyle the whole page.
+2. **Templates are uploaded by each user** on a Templates page (user menu), like companies and like v2's Templates page: a name, a language (Hindi or English) and one HTML file. No template PDF, no rate basis. Another user's template answers 404. A tender stores the template's id.
+3. **Placeholders are read from the HTML.** There is no field list file. Each template can have any number of placeholders (or none), and the left form gets one box per placeholder, named after it.
+4. **Everything on the page is editable or removable**, whether it comes from the template, a placeholder value, or the company:
+   - Template text and images: edited in place (`contenteditable`). The edits are saved as the tender's own copy of the HTML, and the original template never changes. A "Reset template text" button discards them.
    - Placeholder values: typed in the form or straight in the preview, and the two stay in sync (v2's `[data-field]`).
    - Seal (JPG): a canvas block. It can be moved, resized or removed, and added back with "Add seal".
    - Letterhead (PDF): shown under page 1. It can be turned off or covered. A PDF's own text can't be retyped, so to change part of it the user puts a white cover box over that part and adds a text block on top. A font change doesn't reach the letterhead.
@@ -66,10 +66,10 @@ Options 2–4 depend on the type. When Notesheet arrives, they switch to noteshe
 
 ## 5. Rules for switching and defaults
 
-- **New tender:** Quotation, the first company, the first layout and the first font are picked and saved straight away.
+- **New tender:** Quotation, the first company, the first template and the first font are picked and saved straight away.
 - **No company yet:** the preview has no letterhead or seal, and the top bar offers "Add company".
 - **Changing the company:** swaps the letterhead and seal and keeps everything else. A seal the user removed stays removed.
-- **Changing the layout:** asks first, then discards the edited layout text. Values whose key exists in the new layout are kept.
+- **Changing the template:** asks first, then discards the edited template text. Values whose key exists in the new template are kept.
 - **Changing the font:** changes the font only.
 - **Saving:** a Save button, plus a save on download. Changes are kept in the database, never only in the browser.
 
@@ -82,15 +82,16 @@ Options 2–4 depend on the type. When Notesheet arrives, they switch to noteshe
   - id, user_id, name, status
   - type `quotation`
   - company_id (nullable)
-  - layout_key, font_key
+  - template_id (nullable), font_key
   - values (jsonb: key → text)
   - canvas (jsonb: blocks, including the seal block and cover boxes)
   - letterhead_on (boolean)
   - custom_html (nullable)
   - timestamps
+- **`template`:** id, user_id, name, language `hi | en`, status `active | void`, HTML file key, file name, size, timestamps. Delete means void.
 - **`tender_image`:** id, tender_id, file key, for images added on the canvas.
 
-Layouts and fonts are code files, not tables.
+Fonts are code files, not a table.
 
 ## 7. Routes (draft)
 
@@ -102,7 +103,7 @@ Layouts and fonts are code files, not tables.
 | `/settings/profile`, `/settings/companies`                                                                           | User menu pages                                       |
 | `GET/POST /api/tenders`, `GET/PATCH/DELETE /api/tenders/[id]`                                                        | Tender list (with search), create, read, save, delete |
 | `GET/POST /api/companies`, `GET/PATCH/DELETE /api/companies/[id]`, `PUT/GET/DELETE /api/companies/[id]/files/[kind]` | Companies, letterhead, seal                           |
-| `GET /api/layouts`, `GET /api/layouts/[key]`                                                                         | Layout list; one layout's HTML + field list           |
+| `GET/POST /api/templates`, `GET/PATCH/DELETE /api/templates/[id]`, `GET/PUT /api/templates/[id]/file`                | Templates and their HTML file                         |
 | `POST/GET/DELETE /api/tenders/[id]/images[/imageId]`                                                                 | Canvas images                                         |
 | `GET /api/tenders/[id]/preview-parts`                                                                                | Letterhead page + seal for the preview                |
 | `POST /api/tenders/[id]/pdf`                                                                                         | Print and download the PDF                            |
@@ -115,11 +116,10 @@ v2's root folders move under `src/`. A v2 path `services/x.ts` becomes `src/serv
 src/app/            (auth)/login, (app)/page, (app)/t/[tenderId], (app)/settings/*, api/**
 src/components/     shell/, companies/, editor/, ui/
 src/lib/            browser helpers and hooks (auth, companies, tenders, editor, zoom)
-src/services/       tender, company, layout, image, preview, pdf
+src/services/       tender, company, template, image, preview, pdf
 src/repositories/   tender, company, upload
 src/server/         schema, auth, env, http, errors, ownership, file-type, adapters/
-src/shared/         dto, fill-layout, canvas, fonts, zod bodies
-layouts/            <key>/layout.html + <key>/fields.json   (4–5 quotation layouts)
+src/shared/         dto, fill-template, canvas, fonts, zod bodies
 drizzle/            migrations (generated)
 public/fonts/       woff2 files (copied at install)
 scripts/            route-map, copy-reader-assets
@@ -142,12 +142,13 @@ Copy the file, then trim it to the scope above. Never edit v2 itself.
 | Companies   | `services/company.service.ts`, `repositories/company.repository.ts`, `app/api/companies/**`, `components/companies/*`, `lib/companies.ts`, `shared/company-body.ts`                                                                            | Only name + letterhead (PDF) + seal (JPG)                                                               |
 | Uploads     | `services/upload.service.ts`, `repositories/upload.repository.ts`, `lib/file-upload.ts`, `app/api/uploads/token`                                                                                                                               | none                                                                                                    |
 | Preview     | `components/tender/quotation-preview.tsx`, `quotation-canvas.tsx`, `letterhead-page.tsx`, `lib/quotation.ts` (zoom, mm maths), `shared/quotation-canvas.ts`, `shared/quotation-layout.ts` (`fillLayout`, `escapeHtml`)                         | Rename to `editor`; add the font setting, seal block, cover box, letterhead on/off; drop the rate table |
+| Templates   | `services/template.service.ts`, `repositories/template.repository.ts`, `app/api/templates/**`, `components/templates/*`, `lib/templates.ts`, `shared/template-body.ts`, `app/(app)/settings/templates/page.tsx`                                | Only name + language + HTML; drop the PDF, rate basis and the `{{rate_table}}` check                    |
 | Images      | `services/quotation-image.service.ts`, `app/api/tenders/[id]/quotation/images/**`                                                                                                                                                              | Move to `/api/tenders/[id]/images`                                                                      |
 | PDF         | `services/quotation-pdf.service.ts`, `services/quotation-preview.service.ts`, `server/adapters/pdf-printer.ts`, `outputFileTracingIncludes` in `next.config.ts`                                                                                | Use the chosen font instead of the forced Noto (v2 ADR-14)                                              |
 | Tooling     | `scripts/route-map/*`, `.claude/commands/{spec-create,plan-create,execute-plan,git-push}.md`                                                                                                                                                   | Point them at this project                                                                              |
 | Tests       | `tests/integration/global-setup.ts`, `users.ts`, `isolation.test.ts`, `companies.test.ts`, `tests/fakes/*`, the relevant unit tests                                                                                                            | Trim to what's copied                                                                                   |
 
-**Don't copy:** `lib/reader/*`, `components/viewer/*`, `components/documents/*`, `shared/{cfb,word97,kruti-dev,legacy-fonts,text-quality,tender-autofill,document-pages,page-ranges,quotation-math}.ts`, `services/{document,template,template-layout}.service.ts`, the templates pages, the steps components, `mock/`, and v2's `drizzle/` migrations.
+**Don't copy:** `lib/reader/*`, `components/viewer/*`, `components/documents/*`, `shared/{cfb,word97,kruti-dev,legacy-fonts,text-quality,tender-autofill,document-pages,page-ranges,quotation-math}.ts`, `services/{document,template-layout}.service.ts`, the steps components, `mock/`, and v2's `drizzle/` migrations.
 
 ## 10. Build order (each round = one major feature, built spec-driven)
 
@@ -156,10 +157,11 @@ Copy the file, then trim it to the scope above. Never edit v2 itself.
 | 0     | **Project and repo setup** (next step, no spec) | Copied config, `pnpm install`, Neon `DATABASE_URL` in `.env.local`, `src/` layout, `pnpm dev` shows a blank page, typecheck/lint/test pass; git and CI are set up later by the owner |
 | 1     | **Auth + shell**                                | Google sign-in; sidebar with search, new tender, rename/delete; user menu; tenders separated per user (404 test)                                                                     |
 | 2     | **Companies**                                   | Companies page: add/edit/remove, letterhead PDF, seal JPG                                                                                                                            |
-| 3     | **Layouts + fonts registry**                    | `layouts/` with the owner's 4–5 Hindi layouts + field lists; `GET /api/layouts`; font registry with the owner's 10 fonts                                                             |
-| 4     | **Editor: top bar + form + live preview**       | The four dropdowns with defaults; form from the field list; live filled preview over the letterhead; zoom; save                                                                      |
-| 5     | **Editor: full editing**                        | Edit/remove layout text and images in place, seal block, letterhead on/off, cover box, add text/image, reset layout text                                                             |
-| 6     | **PDF download**                                | Same look as the preview, chosen font embedded, works locally and on Vercel                                                                                                          |
+| 3     | **Templates**                                   | Templates page: add/edit/remove, name, language, HTML file; placeholder names shown per template                                                                                     |
+| 4     | **Fonts registry**                              | Font registry with the owner's 10 fonts                                                                                                                                              |
+| 5     | **Editor: top bar + form + live preview**       | The four dropdowns with defaults; form from the placeholders; live filled preview over the letterhead; zoom; save                                                                    |
+| 6     | **Editor: full editing**                        | Edit/remove template text and images in place, seal block, letterhead on/off, cover box, add text/image, reset template text                                                         |
+| 7     | **PDF download**                                | Same look as the preview, chosen font embedded, works locally and on Vercel                                                                                                          |
 | Later | Notesheet (Word), signature, English            | —                                                                                                                                                                                    |
 
 ## 11. How we work (rules carried over from v2)
@@ -182,6 +184,6 @@ Copy the file, then trim it to the scope above. Never edit v2 itself.
 ## 12. Open items
 
 - **Fonts:** the owner will give the 10-font list later. Until then the registry holds Noto Sans Devanagari only.
-- **Layouts:** the owner will give the 4–5 Hindi HTML layouts; each needs its field list (key, Hindi label, type, order). Who writes the field list, the owner or us from the HTML, is to be decided in Round 3.
+- **Templates (decided 2026-11-18, Spec 03):** HTML only, uploaded by each user; a PDF of the original is at most a picture to compare against and is never stored. No ready-made sample templates; the owner uploads them later.
 - **Product name and repo name** are to be decided in Round 0.
-- **Letterhead text:** it can only be covered and overwritten, not retyped. Fine for now? To confirm in Round 5.
+- **Letterhead text:** it can only be covered and overwritten, not retyped. Fine for now? To confirm in Round 6.

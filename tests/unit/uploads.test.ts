@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { contentTypeOfKey } from "@/server/adapters/blob-storage";
 import { resolveStoragePath } from "@/server/adapters/local-storage";
 import { encodeFileName, readUploads } from "@/server/http";
-import { checkUploadPath, MAX_UPLOAD_BYTES, uploadKey } from "@/services/upload.service";
+import { checkUploadPath, UPLOAD_LIMITS, uploadKey } from "@/services/upload.service";
 
 const USER = "11111111-2222-4333-8444-555555555555";
 const OTHER = "99999999-2222-4333-8444-555555555555";
@@ -33,37 +33,39 @@ function jsonRequest(body: unknown): Request {
 
 describe("upload keys", () => {
   it("builds the key from the user id and a random id when the name has a known extension", () => {
-    expect(uploadKey(USER, "My Letterhead.PDF")).toMatch(
+    expect(uploadKey(USER, "companyFile", "My Letterhead.PDF")).toMatch(
       new RegExp(`^uploads/${USER}/[0-9a-f-]{36}\\.pdf$`),
     );
   });
 
   it("keeps no user text in the key when the name tries path traversal", () => {
-    const key = uploadKey(USER, "../../etc/passwd");
+    const key = uploadKey(USER, "companyFile", "../../etc/passwd");
     expect(key).toMatch(new RegExp(`^uploads/${USER}/[0-9a-f-]{36}\\.pdf$`));
     expect(key).not.toContain("..");
   });
 
   it("falls back to pdf when the extension is not allowed", () => {
-    expect(uploadKey(USER, "seal.exe").endsWith(".pdf")).toBe(true);
-    expect(uploadKey(USER, "seal.jpeg").endsWith(".jpeg")).toBe(true);
+    expect(uploadKey(USER, "companyFile", "seal.exe").endsWith(".pdf")).toBe(true);
+    expect(uploadKey(USER, "companyFile", "seal.jpeg").endsWith(".jpeg")).toBe(true);
   });
 
   it("gives a new key on every call", () => {
-    expect(uploadKey(USER, "a.jpg")).not.toBe(uploadKey(USER, "a.jpg"));
+    expect(uploadKey(USER, "companyFile", "a.jpg")).not.toBe(
+      uploadKey(USER, "companyFile", "a.jpg"),
+    );
   });
 });
 
 describe("blob upload path check", () => {
   it("allows the user's own key with a 10 MB limit and pdf/jpeg types", () => {
-    expect(checkUploadPath(USER, `uploads/${USER}/${FILE_ID}.jpg`)).toEqual({
-      maximumSizeInBytes: MAX_UPLOAD_BYTES,
+    expect(checkUploadPath(USER, "companyFile", `uploads/${USER}/${FILE_ID}.jpg`)).toEqual({
+      maximumSizeInBytes: UPLOAD_LIMITS.companyFile.maxBytes,
       allowedContentTypes: ["application/pdf", "image/jpeg"],
     });
   });
 
   it("refuses another user's folder", () => {
-    expect(() => checkUploadPath(USER, `uploads/${OTHER}/${FILE_ID}.jpg`)).toThrow(
+    expect(() => checkUploadPath(USER, "companyFile", `uploads/${OTHER}/${FILE_ID}.jpg`)).toThrow(
       "This upload path is not allowed.",
     );
   });
@@ -76,7 +78,35 @@ describe("blob upload path check", () => {
       `uploads/${USER}/letterhead.pdf`,
       `other/${USER}/${FILE_ID}.pdf`,
     ]) {
-      expect(() => checkUploadPath(USER, pathname)).toThrow("This upload path is not allowed.");
+      expect(() => checkUploadPath(USER, "companyFile", pathname)).toThrow(
+        "This upload path is not allowed.",
+      );
+    }
+  });
+});
+
+describe("template uploads", () => {
+  it("gives an html key and falls back to html for a wrong extension", () => {
+    expect(uploadKey(USER, "template", "Quote.HTML").endsWith(".html")).toBe(true);
+    expect(uploadKey(USER, "template", "quote.htm").endsWith(".htm")).toBe(true);
+    expect(uploadKey(USER, "template", "quote.pdf").endsWith(".html")).toBe(true);
+  });
+
+  it("allows an html path with a 2 MB limit and refuses a pdf path", () => {
+    expect(checkUploadPath(USER, "template", `uploads/${USER}/${FILE_ID}.html`)).toEqual({
+      maximumSizeInBytes: 2 * 1024 * 1024,
+      allowedContentTypes: ["text/html; charset=utf-8"],
+    });
+    expect(() => checkUploadPath(USER, "template", `uploads/${USER}/${FILE_ID}.pdf`)).toThrow(
+      "This upload path is not allowed.",
+    );
+  });
+
+  it("refuses an unknown upload kind", () => {
+    for (const kind of ["document", "", null, 3]) {
+      expect(() => checkUploadPath(USER, kind, `uploads/${USER}/${FILE_ID}.pdf`)).toThrow(
+        "Unknown upload kind.",
+      );
     }
   });
 });
@@ -97,7 +127,8 @@ describe("storage paths", () => {
   it("maps key extensions to content types and unknown ones to octet-stream", () => {
     expect(contentTypeOfKey("a/b.pdf")).toBe("application/pdf");
     expect(contentTypeOfKey("a/b.JPEG")).toBe("image/jpeg");
-    expect(contentTypeOfKey("a/b.html")).toBe("application/octet-stream");
+    expect(contentTypeOfKey("a/b.html")).toBe("text/html; charset=utf-8");
+    expect(contentTypeOfKey("a/b.exe")).toBe("application/octet-stream");
   });
 });
 

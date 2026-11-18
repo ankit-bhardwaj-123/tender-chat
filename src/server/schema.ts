@@ -1,8 +1,10 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { bigint, boolean, index, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const companyStatus = pgEnum("company_status", ["active", "void"]);
 export const companyFileKind = pgEnum("company_file_kind", ["letterhead", "seal"]);
+export const templateStatus = pgEnum("template_status", ["active", "void"]);
+export const templateLanguage = pgEnum("template_language", ["hi", "en"]);
 
 export const user = pgTable("user", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -77,9 +79,24 @@ export const companyFile = pgTable("company_file", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [primaryKey({ columns: [table.companyId, table.kind] })]);
 
-export const userRelations = relations(user, ({ many }) => ({ sessions: many(session), accounts: many(account), tenders: many(tender), companies: many(company) }));
+export const template = pgTable("template", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  language: templateLanguage("language").notNull().default("hi"),
+  status: templateStatus("status").notNull().default("active"),
+  storageKey: text("storage_key").notNull().unique(),
+  fileName: text("file_name").notNull(),
+  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+  placeholders: text("placeholders").array().notNull().default(sql`'{}'::text[]`),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("template_user_created_idx").on(table.userId, table.createdAt)]);
+
+export const userRelations = relations(user, ({ many }) => ({ sessions: many(session), accounts: many(account), tenders: many(tender), companies: many(company), templates: many(template) }));
 export const sessionRelations = relations(session, ({ one }) => ({ user: one(user, { fields: [session.userId], references: [user.id] }) }));
 export const accountRelations = relations(account, ({ one }) => ({ user: one(user, { fields: [account.userId], references: [user.id] }) }));
 export const tenderRelations = relations(tender, ({ one }) => ({ user: one(user, { fields: [tender.userId], references: [user.id] }) }));
 export const companyRelations = relations(company, ({ one, many }) => ({ user: one(user, { fields: [company.userId], references: [user.id] }), files: many(companyFile) }));
 export const companyFileRelations = relations(companyFile, ({ one }) => ({ company: one(company, { fields: [companyFile.companyId], references: [company.id] }) }));
+export const templateRelations = relations(template, ({ one }) => ({ user: one(user, { fields: [template.userId], references: [user.id] }) }));
