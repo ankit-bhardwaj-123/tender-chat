@@ -40,12 +40,25 @@ describe("company body", () => {
   it("rejects a name that isn't a string", () => {
     expect(CompanyBody.safeParse({ name: 5 }).success).toBe(false);
   });
+
+  it("accepts a missing, null or known font", () => {
+    expect(CompanyBody.parse({ name: "A" }).fontKey).toBeUndefined();
+    expect(CompanyBody.parse({ name: "A", fontKey: null }).fontKey).toBeNull();
+    expect(CompanyBody.parse({ name: "A", fontKey: "mukta" }).fontKey).toBe("mukta");
+  });
+
+  it("rejects an unknown, empty or non-string font", () => {
+    for (const fontKey of ["comic-sans", "", 5, "Mukta"]) {
+      expect(CompanyBody.safeParse({ name: "A", fontKey }).success).toBe(false);
+    }
+  });
 });
 
 describe("toCompany", () => {
   const row = {
     id: "c1",
     name: "Balaji",
+    fontKey: null,
     createdAt: new Date("2026-01-01T00:00:00Z"),
     updatedAt: new Date("2026-01-02T00:00:00Z"),
   };
@@ -71,5 +84,10 @@ describe("toCompany", () => {
       letterhead: null,
       seal: { fileName: "seal.jpg", size: 12, uploadedAt: "2026-01-03T00:00:00.000Z" },
     });
+  });
+
+  it("passes a known font through and turns an unknown one into null", () => {
+    expect(toCompany({ ...row, fontKey: "laila" }, []).fontKey).toBe("laila");
+    expect(toCompany({ ...row, fontKey: "gone-font" }, []).fontKey).toBeNull();
   });
 });

@@ -9,9 +9,15 @@ export interface Session {
   user: User;
 }
 
+export type TenderType = "quotation";
+
 export interface Tender {
   id: string;
   name: string;
+  type: TenderType;
+  companyId: string | null;
+  templateId: string | null;
+  values: Record<string, string>;
   createdAt: string;
   updatedAt: string;
 }
@@ -32,6 +38,7 @@ export interface CompanyFiles {
 export interface Company {
   id: string;
   name: string;
+  fontKey: string | null;
   files: CompanyFiles;
   createdAt: string;
   updatedAt: string;

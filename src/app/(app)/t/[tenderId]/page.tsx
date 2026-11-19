@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { TenderPage } from "@/components/shell/tender-page";
+import { EditorPage } from "@/components/editor/editor-page";
 
 export const metadata: Metadata = { title: "Tender" };
 
 export default function Page() {
   return (
     <Suspense>
-      <TenderPage />
+      <EditorPage />
     </Suspense>
   );
 }

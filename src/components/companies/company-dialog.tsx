@@ -20,10 +20,11 @@ import {
   COMPANIES_KEY,
   companyFileUrl,
   removeCompanyFile,
-  saveCompanyName,
+  saveCompany,
   uploadCompanyFile,
 } from "@/lib/companies";
 import { FileField, type SavedFile } from "./file-field";
+import { FontField } from "./font-field";
 
 interface CompanyDialogProps {
   open: boolean;
@@ -31,19 +32,15 @@ interface CompanyDialogProps {
   company: Company | null;
 }
 
-interface CompanyFormProps {
-  company: Company | null;
-  onSaved: () => void;
-}
-
 type PickedFiles = Partial<Record<CompanyFileKind, File>>;
 
 const FILE_KINDS: readonly CompanyFileKind[] = ["letterhead", "seal"];
 const FAILED = "Something went wrong, please try again.";
 
-function CompanyForm({ company, onSaved }: CompanyFormProps) {
+export function CompanyDialog({ open, onOpenChange, company }: CompanyDialogProps) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(company?.name ?? "");
+  const [fontKey, setFontKey] = useState<string | null>(company?.fontKey ?? null);
   const [saved, setSaved] = useState<Company | null>(company);
   const [picked, setPicked] = useState<PickedFiles>({});
   const [removed, setRemoved] = useState<ReadonlySet<CompanyFileKind>>(new Set());
@@ -85,7 +82,7 @@ function CompanyForm({ company, onSaved }: CompanyFormProps) {
     const removals = [...removed].filter((kind) => !picked[kind] && saved?.files[kind]);
     try {
       setProgress("Saving…");
-      let current = await saveCompanyName(saved?.id ?? null, name);
+      let current = await saveCompany(saved?.id ?? null, { name, fontKey });
       setSaved(current);
       for (const kind of removals) {
         current = await removeCompanyFile(current.id, kind);
@@ -102,7 +99,7 @@ function CompanyForm({ company, onSaved }: CompanyFormProps) {
         });
       }
       toast.success(editing ? "Company updated." : "Company added.");
-      onSaved();
+      onOpenChange(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : FAILED);
     } finally {
@@ -112,62 +109,57 @@ function CompanyForm({ company, onSaved }: CompanyFormProps) {
   };
 
   return (
-    <form onSubmit={(e) => void submit(e)} className="flex min-h-0 flex-1 flex-col">
-      <header className="flex items-start gap-3 border-b px-6 py-4">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <DialogTitle className="text-lg font-semibold">
-            {editing ? "Edit company" : "Add company"}
-          </DialogTitle>
-          <DialogDescription>
-            The letterhead and seal go on the quotations made for this company.
-          </DialogDescription>
-        </div>
-        <DialogClose asChild>
-          <IconButton type="button" label="Close" size="icon-sm" className="-mr-2">
-            <X />
-          </IconButton>
-        </DialogClose>
-      </header>
-
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-5">
-        <Field>
-          <FieldLabel htmlFor="company-name">Company name</FieldLabel>
-          <Input
-            id="company-name"
-            autoComplete="organization"
-            placeholder="XYZ Pvt. Ltd."
-            autoFocus
-            required
-            maxLength={200}
-            value={name}
-            disabled={busy}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </Field>
-        <FileField label="Letterhead" accept="pdf" {...fileProps("letterhead")} />
-        <FileField label="Seal" accept="jpg" {...fileProps("seal")} />
-      </div>
-
-      <footer className="flex flex-col-reverse gap-2 border-t bg-muted/50 px-6 py-4 sm:flex-row sm:items-center sm:justify-end">
-        <DialogClose asChild>
-          <Button type="button" variant="outline" disabled={busy}>
-            Cancel
-          </Button>
-        </DialogClose>
-        <Button type="submit" disabled={busy || name.trim() === ""}>
-          {busy && <Loader2 className="animate-spin" aria-hidden />}
-          {progress ?? (editing ? "Save changes" : "Add company")}
-        </Button>
-      </footer>
-    </form>
-  );
-}
-
-export function CompanyDialog({ open, onOpenChange, company }: CompanyDialogProps) {
-  return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[min(90dvh,40rem)] flex-col gap-0 p-0 sm:max-w-lg">
-        <CompanyForm company={company} onSaved={() => onOpenChange(false)} />
+        <form onSubmit={(e) => void submit(e)} className="flex min-h-0 flex-1 flex-col">
+          <header className="flex items-start gap-3 border-b px-6 py-4">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <DialogTitle className="text-lg font-semibold">
+                {editing ? "Edit company" : "Add company"}
+              </DialogTitle>
+              <DialogDescription>
+                The letterhead, seal and font go on the quotations made for this company.
+              </DialogDescription>
+            </div>
+            <DialogClose asChild>
+              <IconButton type="button" label="Close" size="icon-sm" className="-mr-2">
+                <X />
+              </IconButton>
+            </DialogClose>
+          </header>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-5">
+            <Field>
+              <FieldLabel htmlFor="company-name">Company name</FieldLabel>
+              <Input
+                id="company-name"
+                autoComplete="organization"
+                placeholder="XYZ Pvt. Ltd."
+                autoFocus
+                required
+                maxLength={200}
+                value={name}
+                disabled={busy}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </Field>
+            <FontField value={fontKey} onChange={setFontKey} disabled={busy} />
+            <FileField label="Letterhead" accept="pdf" {...fileProps("letterhead")} />
+            <FileField label="Seal" accept="jpg" {...fileProps("seal")} />
+          </div>
+
+          <footer className="flex flex-col-reverse gap-2 border-t bg-muted/50 px-6 py-4 sm:flex-row sm:items-center sm:justify-end">
+            <DialogClose asChild>
+              <Button type="button" variant="outline" disabled={busy}>
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="submit" disabled={busy || name.trim() === ""}>
+              {busy && <Loader2 className="animate-spin" aria-hidden />}
+              {progress ?? (editing ? "Save changes" : "Add company")}
+            </Button>
+          </footer>
+        </form>
       </DialogContent>
     </Dialog>
   );

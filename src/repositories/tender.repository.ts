@@ -5,6 +5,19 @@ import { tender } from "@/server/schema";
 
 export type TenderRow = typeof tender.$inferSelect;
 
+export interface NewTender {
+  name: string;
+  companyId: string | null;
+  templateId: string | null;
+}
+
+export interface TenderChanges {
+  name?: string;
+  companyId?: string | null;
+  templateId?: string | null;
+  values?: Record<string, string>;
+}
+
 export async function findAllTendersByUser(
   userId: string,
   search = "",
@@ -33,25 +46,33 @@ export async function findTenderById(
 
 export async function createTender(
   userId: string,
-  name: string,
+  values: NewTender,
   db: Executor = defaultDb,
 ): Promise<TenderRow> {
-  const [row] = await db.insert(tender).values({ userId, name }).returning();
+  const [row] = await db
+    .insert(tender)
+    .values({ userId, ...values })
+    .returning();
   if (!row) {
     throw new Error("Insert returned no row");
   }
   return row;
 }
 
-export async function updateTenderName(
+export async function updateTender(
   userId: string,
   tenderId: string,
-  name: string,
+  changes: TenderChanges,
   db: Executor = defaultDb,
 ): Promise<TenderRow | null> {
+  const set: TenderChanges = {};
+  if (changes.name !== undefined) set.name = changes.name;
+  if (changes.companyId !== undefined) set.companyId = changes.companyId;
+  if (changes.templateId !== undefined) set.templateId = changes.templateId;
+  if (changes.values !== undefined) set.values = changes.values;
   const [row] = await db
     .update(tender)
-    .set({ name, updatedAt: new Date() })
+    .set({ ...set, updatedAt: new Date() })
     .where(and(eq(tender.id, tenderId), ownedBy(userId)))
     .returning();
   return row ?? null;

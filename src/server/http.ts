@@ -34,7 +34,8 @@ export async function readJson<T>(request: Request, schema: z.ZodType<T>): Promi
   });
   const result = schema.safeParse(json);
   if (!result.success) {
-    throw invalid("The request body is not valid.");
+    const custom = result.error.issues.find((issue) => issue.code === "custom");
+    throw invalid(custom?.message ?? "The request body is not valid.");
   }
   return result.data;
 }

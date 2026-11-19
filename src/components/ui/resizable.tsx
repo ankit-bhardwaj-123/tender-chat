@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "cn";
+import { GripVertical } from "lucide-react";
 import * as ResizablePrimitive from "react-resizable-panels";
 
 function ResizablePanelGroup({ className, ...props }: ResizablePrimitive.GroupProps) {
@@ -33,7 +34,11 @@ function ResizableHandle({
       )}
       {...props}
     >
-      {withHandle && <div className="z-10 flex h-6 w-1 shrink-0 rounded-lg bg-border" />}
+      {withHandle && (
+        <div className="z-10 flex h-10 w-4 shrink-0 items-center justify-center rounded-md border border-input bg-card text-muted-foreground shadow-sm">
+          <GripVertical className="size-3.5" aria-hidden />
+        </div>
+      )}
     </ResizablePrimitive.Separator>
   );
 }

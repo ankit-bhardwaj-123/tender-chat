@@ -31,11 +31,19 @@ export function useCompanies() {
   return useQuery({ queryKey: COMPANIES_KEY, queryFn: fetchCompanies });
 }
 
-export async function saveCompanyName(companyId: string | null, name: string): Promise<Company> {
+export interface CompanyValues {
+  name: string;
+  fontKey: string | null;
+}
+
+export async function saveCompany(
+  companyId: string | null,
+  values: CompanyValues,
+): Promise<Company> {
   const res = await fetch(companyId ? `/api/companies/${companyId}` : "/api/companies", {
     method: companyId ? "PATCH" : "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name: values.name, fontKey: values.fontKey }),
   });
   return readCompany(res);
 }

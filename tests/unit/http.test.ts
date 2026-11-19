@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { invalid, notFound, unauthorized, unavailable } from "@/server/errors";
 import { handle, parseId, readJson } from "@/server/http";
-import { RenameTenderBody } from "@/shared/tender-body";
+import { CreateTenderBody } from "@/shared/tender-body";
 
 vi.mock("@/server/report-error", () => ({ reportError: vi.fn() }));
 
@@ -72,19 +72,19 @@ describe("http handle", () => {
 
 describe("http readJson", () => {
   it("returns the parsed body when it matches the schema", async () => {
-    await expect(readJson(jsonRequest('{"name":"Road"}'), RenameTenderBody)).resolves.toEqual({
+    await expect(readJson(jsonRequest('{"name":"Road"}'), CreateTenderBody)).resolves.toEqual({
       name: "Road",
     });
   });
 
   it("throws invalid when the body isn't JSON", async () => {
-    await expect(readJson(jsonRequest("not json"), RenameTenderBody)).rejects.toMatchObject({
+    await expect(readJson(jsonRequest("not json"), CreateTenderBody)).rejects.toMatchObject({
       kind: "invalid",
     });
   });
 
   it("throws invalid when the body has the wrong shape", async () => {
-    await expect(readJson(jsonRequest('{"name":5}'), RenameTenderBody)).rejects.toMatchObject({
+    await expect(readJson(jsonRequest('{"name":5}'), CreateTenderBody)).rejects.toMatchObject({
       kind: "invalid",
     });
   });

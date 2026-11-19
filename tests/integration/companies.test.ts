@@ -69,6 +69,50 @@ describe("companies API", () => {
     expect(company.files).toEqual({ letterhead: null, seal: null });
   });
 
+  it("creates a company without a font as null", async () => {
+    const company = await createCompany("No font");
+    expect(company.fontKey).toBeNull();
+  });
+
+  it("saves, changes and clears a company's font", async () => {
+    const created = await companiesRoute.POST(
+      apiRequest(owner, "/api/companies", jsonBody("POST", { name: "Fonts", fontKey: "mukta" })),
+    );
+    expect(created.status).toBe(201);
+    const company = (await created.json()) as Company;
+    expect(company.fontKey).toBe("mukta");
+    const path = `/api/companies/${company.id}`;
+
+    const changed = await companyRoute.PATCH(
+      apiRequest(owner, path, jsonBody("PATCH", { name: "Fonts", fontKey: "laila" })),
+      idParams(company.id),
+    );
+    expect(((await changed.json()) as Company).fontKey).toBe("laila");
+
+    const renamed = await companyRoute.PATCH(
+      apiRequest(owner, path, jsonBody("PATCH", { name: "Fonts 2" })),
+      idParams(company.id),
+    );
+    expect(((await renamed.json()) as Company).fontKey).toBe("laila");
+
+    const cleared = await companyRoute.PATCH(
+      apiRequest(owner, path, jsonBody("PATCH", { name: "Fonts 2", fontKey: null })),
+      idParams(company.id),
+    );
+    expect(((await cleared.json()) as Company).fontKey).toBeNull();
+
+    const read = await companyRoute.GET(apiRequest(owner, path), idParams(company.id));
+    expect(((await read.json()) as Company).fontKey).toBeNull();
+  });
+
+  it("refuses an unknown font with 400", async () => {
+    const res = await companiesRoute.POST(
+      apiRequest(owner, "/api/companies", jsonBody("POST", { name: "X", fontKey: "comic-sans" })),
+    );
+    expect(res.status).toBe(400);
+    expect(await errorMessage(res)).toBe("Unknown font.");
+  });
+
   it("refuses an empty name", async () => {
     const res = await companiesRoute.POST(
       apiRequest(owner, "/api/companies", jsonBody("POST", { name: "  " })),

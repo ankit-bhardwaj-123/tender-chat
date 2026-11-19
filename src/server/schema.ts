@@ -1,10 +1,11 @@
 import { relations, sql } from "drizzle-orm";
-import { bigint, boolean, index, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { bigint, boolean, index, jsonb, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const companyStatus = pgEnum("company_status", ["active", "void"]);
 export const companyFileKind = pgEnum("company_file_kind", ["letterhead", "seal"]);
 export const templateStatus = pgEnum("template_status", ["active", "void"]);
 export const templateLanguage = pgEnum("template_language", ["hi", "en"]);
+export const tenderType = pgEnum("tender_type", ["quotation"]);
 
 export const user = pgTable("user", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -56,6 +57,10 @@ export const tender = pgTable("tender", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
+  type: tenderType("type").notNull().default("quotation"),
+  companyId: uuid("company_id").references(() => company.id, { onDelete: "set null" }),
+  templateId: uuid("template_id").references(() => template.id, { onDelete: "set null" }),
+  values: jsonb("values").$type<Record<string, string>>().notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("tender_user_updated_idx").on(table.userId, table.updatedAt)]);
@@ -64,6 +69,7 @@ export const company = pgTable("company", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
+  fontKey: text("font_key"),
   status: companyStatus("status").notNull().default("active"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

@@ -4,8 +4,24 @@ All notable changes to this project are recorded here (newest first).
 
 ## [Unreleased]
 
+### Added
+
+- 2026-11-19: While a company, template or font change saves, or a new template loads, the editor's form and preview are blurred with a spinner and "Changing the company…" / "Changing the template…" / "Changing the font…" / "Loading the template…". New shadcn-style `Spinner`. (`src/components/ui/spinner.tsx`, `src/components/editor/{editor-page,editor-top-bar}.tsx`)
+- 2026-11-19: Spec 05 editor: `/t/[tenderId]` is now the editor, with a top bar (Type, Company, Template, Font; a font change saves to the company), one growing box per placeholder, and a live A4 preview. The preview shows the filled template in a sandboxed iframe, the letterhead PDF under page 1 (react-pdf), the seal bottom right, dashed page breaks, zoom −/+/Fit width, and a draggable split. Save button, a template change asks first and keeps matching values, and leaving with unsaved values asks first. New `tender` columns `type`, `company_id`, `template_id`, `values` (migration `0004_tender-editor`); PATCH `/api/tenders/[id]` takes any of `name`, `companyId`, `templateId`, `values`, and another user's (or a deleted) company or template answers 404. (`src/shared/fill-template.ts`, `src/lib/editor.ts`, `src/components/editor/{editor-page,editor-top-bar,placeholder-form,page-preview,letterhead-page}.tsx`, `src/components/ui/textarea.tsx`, `src/app/(app)/t/[tenderId]/page.tsx`, `src/server/schema.ts`, `src/shared/{tender-body,dto,placeholders}.ts`, `src/types.ts`, `src/repositories/tender.repository.ts`, `src/services/tender.service.ts`, `src/app/api/tenders/[id]/route.ts`, `tests/unit/{fill-template,editor}.test.ts`, `tests/integration/tender-editor.test.ts`, `tests/contract/tender-body.test.ts`, `tests/unit/http.test.ts`)
+- 2026-11-19: Plan 05 Editor (top bar, form and live preview) (.claude/plans/05-editor.md)
+- 2026-11-19: Spec 05 Editor (top bar, form and live preview) (.claude/specs/05-editor.md)
+- 2026-11-19: Spec 04 fonts check: tests for the `@font-face` output and company summary, and for saving, keeping, clearing and refusing company fonts across users. (`tests/unit/font-faces.test.ts`, `tests/integration/company-fonts.test.ts`, `.claude/reports/2026-11-19-04-fonts.md`)
+- 2026-11-19: Spec 04 fonts: each company can pick one of 10 Hindi fonts (Poppins default) in the Add/Edit company dialog, each shown in its own style with a Hindi sample; the company list shows the font. Fonts come from `@fontsource/*` 5.3.0, copied into `public/fonts/` on install and declared once with `@font-face`; new `company.font_key` column (migration `0003_company-font`), and the company bodies take an optional `fontKey`. (`src/shared/fonts.ts`, `src/components/companies/font-field.tsx`, `src/components/shell/font-faces.tsx`, `src/app/(app)/layout.tsx`, `src/components/companies/{company-dialog,company-list}.tsx`, `src/lib/companies.ts`, `src/shared/{company-body,dto}.ts`, `src/types.ts`, `src/server/schema.ts`, `src/repositories/company.repository.ts`, `src/services/company.service.ts`, `src/app/api/companies/**`, `scripts/copy-reader-assets.mjs`, `package.json`, `tests/unit/fonts.test.ts`, `tests/contract/company-body.test.ts`, `tests/integration/{companies,company-edges}.test.ts`)
+- 2026-11-19: Plan 04 Fonts (.claude/plans/04-fonts.md)
+- 2026-11-19: Spec 04 Fonts (.claude/specs/04-fonts.md)
+
 ### Fixed
 
+- 2026-11-19: Uploading a template HTML file to Vercel Blob no longer fails with 403: the upload token allowed only `text/html; charset=utf-8`, but browsers send `text/html`, so the token now lists base types only. Stored files are still served as UTF-8 by our own route. (`src/services/upload.service.ts`, `tests/unit/uploads.test.ts`)
+- 2026-11-19: The editor no longer errors on the server with "localStorage is not defined": the split-width storage falls back to a do-nothing store where there is no browser storage. (`src/lib/editor.ts`, `src/components/editor/editor-page.tsx`)
+- 2026-11-19: Two first uploads of the same company file at once no longer leave an orphaned stored file: the upload locks the company row, so uploads to one company run one after another (Spec 02 report). (`src/repositories/company.repository.ts`, `src/services/company.service.ts`)
+- 2026-11-19: A bad company font now answers "Unknown font.": `readJson` passes on a body schema's own custom message and keeps the general one otherwise. (`src/server/http.ts`, `src/shared/company-body.ts`, `tests/integration/companies.test.ts`)
+- 2026-11-19: The Hindi font sample is marked `lang="hi"` so screen readers use a Hindi voice. (`src/components/companies/font-field.tsx`)
 - 2026-11-19: Template View now really blocks scripts: the app-wide CSP in `next.config.ts` was overriding the route's `sandbox` policy, so a later header rule for `/api/templates/:id/file` sends the shared sandbox policy. (`next.config.ts`, `src/shared/template-file-policy.ts`, `src/app/api/templates/[id]/file/route.ts`)
 - 2026-11-19: A stored (Blob) upload must have a file extension allowed for its kind, so a company PDF can no longer be registered as a template. (`src/services/upload.service.ts`)
 - 2026-11-19: Placeholder names are NFC-normalised, so a Hindi name typed in two Unicode forms shows once. (`src/shared/placeholders.ts`)
@@ -14,6 +30,11 @@ All notable changes to this project are recorded here (newest first).
 
 ### Changed
 
+- 2026-11-19: The seal in the editor preview now sits 2 lines below the template's last line of text (right side), instead of at the bottom of page 1; a long template pushes it onto the next page. (`src/components/editor/page-preview.tsx`)
+- 2026-11-19: The editor's form/preview divider is easier to see and grab: a thicker line that turns blue on hover or focus, with a bordered grip showing a grip icon. (`src/components/ui/resizable.tsx`, `src/components/editor/editor-page.tsx`)
+- 2026-11-19: Preview zoom now steps 50, 60, 70, 75, 100, 125, 150, 200 %, so zooming in from 50 % goes through 60 % and 70 % before 75 %. (`src/lib/editor.ts`, `tests/unit/editor.test.ts`)
+- 2026-11-19: `CompanyForm` is merged into `CompanyDialog` (it is already remounted by its `key`), so the font and file fields sit within the 3-level component limit. Prettier run on the Spec 04 report (whitespace only). (`src/components/companies/company-dialog.tsx`, `.claude/reports/2026-11-19-04-fonts.md`)
+- 2026-11-19: Font plan changed: the font belongs to the company (chosen, changed or removed on the company form; none means the first font). The editor's Font dropdown shows the company's font, and a change there saves to the company. The 10-font list is set, with Poppins first. `tender.font_key` is dropped and `company.font_key` added. (`PROJECT-PLAN.md`)
 - 2026-11-18: Uploads now name their kind (`companyFile` 10 MB PDF/JPG, `template` 2 MB HTML), sent with each Blob upload and checked by the token route; the file field also takes HTML and can hide Remove for a saved file; the stored-key check covers template files. (`src/services/upload.service.ts`, `src/repositories/upload.repository.ts`, `src/lib/{file-upload,companies}.ts`, `src/app/api/uploads/token/route.ts`, `src/app/api/companies/[id]/files/[kind]/route.ts`, `src/services/company.service.ts`, `src/server/adapters/blob-storage.ts`, `src/components/companies/file-field.tsx`, `tests/unit/uploads.test.ts`)
 - 2026-11-18: Ran Prettier on the Spec 02 report so `pnpm format:check` passes (whitespace only). (`.claude/reports/2026-11-18-02-companies.md`)
 - 2026-11-18: Spec 03 agreed: templates are uploaded by each user on a Templates page (name, Hindi/English, one HTML file; placeholder names in small blue text under each name), not built in; no field list files; fonts move to their own Round 4 and the editor/PDF rounds become 5–7. (`.claude/specs/03-templates-spec.md`, `PROJECT-PLAN.md`, `CLAUDE.md`, `.claude/skills/tender-chat/SKILL.md`, `.claude/agents/feature-checker.md`)
@@ -23,6 +44,7 @@ All notable changes to this project are recorded here (newest first).
 
 ### Removed
 
+- 2026-11-19: `src/components/shell/tender-page.tsx` (the placeholder tender page) and `RenameTenderBody`, replaced by the editor and `UpdateTenderBody` (Spec 05).
 - 2026-11-18: The ready-made sample template `paidal-march-plantation`; the owner will upload templates later. (`layouts/paidal-march-plantation/layout.html`)
 
 ### Added

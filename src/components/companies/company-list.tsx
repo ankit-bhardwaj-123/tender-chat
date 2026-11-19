@@ -13,6 +13,7 @@ import {
 import { IconButton } from "@/components/ui/icon-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanies } from "@/lib/companies";
+import { fontOf } from "@/shared/fonts";
 import { CompanyDialog } from "./company-dialog";
 import { DeleteCompanyDialog } from "./delete-company-dialog";
 
@@ -24,12 +25,21 @@ interface CompanyRowProps {
 
 type RowAction = "edit" | "delete";
 
-export function companySummary(company: Company): string {
+function filesSummary(company: Company): string {
   const { letterhead, seal } = company.files;
   if (letterhead && seal) return "Letterhead · Seal";
   if (letterhead) return "Letterhead · No seal";
   if (seal) return "Seal · No letterhead";
   return "No files yet";
+}
+
+function fontSummary(company: Company): string {
+  const label = fontOf(company.fontKey).label;
+  return company.fontKey === null ? `${label} (default)` : label;
+}
+
+export function companySummary(company: Company): string {
+  return `${filesSummary(company)} · ${fontSummary(company)}`;
 }
 
 function CompanyRow({ company, onEdit, onDelete }: CompanyRowProps) {

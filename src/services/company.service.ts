@@ -1,12 +1,14 @@
 import {
+  type CompanyChanges,
   deleteCompanyFile,
   findCompaniesByUser,
   findCompanyById,
   findCompanyFile,
   findFilesOfCompanies,
   insertCompany,
+  lockCompany,
   lockCompanyFile,
-  updateCompanyName,
+  updateCompany as updateCompanyRow,
   upsertCompanyFile,
   voidCompany,
 } from "@/repositories/company.repository";
@@ -104,17 +106,21 @@ export async function getCompany(userId: string, companyId: string): Promise<Com
   return ownedCompany(userId, companyId);
 }
 
-export async function createCompany(userId: string, name: string): Promise<Company> {
-  const row = await insertCompany(userId, name);
+export async function createCompany(
+  userId: string,
+  name: string,
+  fontKey: string | null,
+): Promise<Company> {
+  const row = await insertCompany(userId, name, fontKey);
   return toCompany(row, []);
 }
 
-export async function renameCompany(
+export async function updateCompany(
   userId: string,
   companyId: string,
-  name: string,
+  changes: CompanyChanges,
 ): Promise<Company> {
-  const row = await updateCompanyName(userId, companyId, name);
+  const row = await updateCompanyRow(userId, companyId, changes);
   if (!row) {
     throw notFound(NOT_FOUND);
   }
@@ -141,7 +147,7 @@ export async function uploadCompanyFile(
     }
     const contentType = await checkFileType(upload, kind);
     await db.transaction(async (tx) => {
-      if (!(await findCompanyById(userId, companyId, tx))) {
+      if (!(await lockCompany(userId, companyId, tx))) {
         throw notFound(NOT_FOUND);
       }
       const previous = await lockCompanyFile(companyId, kind, tx);

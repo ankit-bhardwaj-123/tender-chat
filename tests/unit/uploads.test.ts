@@ -95,7 +95,7 @@ describe("template uploads", () => {
   it("allows an html path with a 2 MB limit and refuses a pdf path", () => {
     expect(checkUploadPath(USER, "template", `uploads/${USER}/${FILE_ID}.html`)).toEqual({
       maximumSizeInBytes: 2 * 1024 * 1024,
-      allowedContentTypes: ["text/html; charset=utf-8"],
+      allowedContentTypes: ["text/html"],
     });
     expect(() => checkUploadPath(USER, "template", `uploads/${USER}/${FILE_ID}.pdf`)).toThrow(
       "This upload path is not allowed.",

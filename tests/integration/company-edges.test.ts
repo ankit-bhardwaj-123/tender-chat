@@ -164,6 +164,28 @@ describe("company list and delete in the database", () => {
     }
   });
 
+  it("answers 404 when another user sets a company's font and leaves the font as it was", async () => {
+    const company = await createCompany("Font owner");
+    const res = await companyRoute.PATCH(
+      apiRequest(stranger, "/x", jsonBody("PATCH", { name: "Taken", fontKey: "gotu" })),
+      idParams(company.id),
+    );
+    expect(res.status).toBe(404);
+    const [row] = await db.select().from(companyTable).where(eq(companyTable.id, company.id));
+    expect(row?.fontKey).toBeNull();
+    expect(row?.name).toBe("Font owner");
+  });
+
+  it("reads a font key that is no longer on the list as null", async () => {
+    const company = await createCompany("Old font");
+    await db
+      .update(companyTable)
+      .set({ fontKey: "kruti-dev" })
+      .where(eq(companyTable.id, company.id));
+    const res = await companyRoute.GET(apiRequest(owner, "/x"), idParams(company.id));
+    expect(((await res.json()) as Company).fontKey).toBeNull();
+  });
+
   it("keeps the row with status void and its files when a company is deleted", async () => {
     const company = await createCompany("Voided");
     await putFile(owner, company.id, "seal", new File([JPG], "seal.jpg"));

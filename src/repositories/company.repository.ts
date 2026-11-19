@@ -6,6 +6,11 @@ import type { CompanyFileKind } from "@/types";
 export type CompanyRow = typeof company.$inferSelect;
 export type CompanyFileRow = typeof companyFile.$inferSelect;
 
+export interface CompanyChanges {
+  name: string;
+  fontKey?: string | null;
+}
+
 export interface NewCompanyFile {
   kind: CompanyFileKind;
   storageKey: string;
@@ -67,24 +72,26 @@ export async function findCompanyFile(
 export async function insertCompany(
   userId: string,
   name: string,
+  fontKey: string | null,
   db: Executor = defaultDb,
 ): Promise<CompanyRow> {
-  const [row] = await db.insert(company).values({ userId, name }).returning();
+  const [row] = await db.insert(company).values({ userId, name, fontKey }).returning();
   if (!row) {
     throw new Error("Insert returned no row");
   }
   return row;
 }
 
-export async function updateCompanyName(
+export async function updateCompany(
   userId: string,
   companyId: string,
-  name: string,
+  changes: CompanyChanges,
   db: Executor = defaultDb,
 ): Promise<CompanyRow | null> {
+  const fontChange = changes.fontKey === undefined ? {} : { fontKey: changes.fontKey };
   const [row] = await db
     .update(company)
-    .set({ name, updatedAt: new Date() })
+    .set({ name: changes.name, ...fontChange, updatedAt: new Date() })
     .where(and(eq(company.id, companyId), activeCompanyOf(userId)))
     .returning();
   return row ?? null;
@@ -101,6 +108,19 @@ export async function voidCompany(
     .where(and(eq(company.id, companyId), activeCompanyOf(userId)))
     .returning({ id: company.id });
   return row !== undefined;
+}
+
+export async function lockCompany(
+  userId: string,
+  companyId: string,
+  tx: Executor,
+): Promise<CompanyRow | null> {
+  const [row] = await tx
+    .select()
+    .from(company)
+    .where(and(eq(company.id, companyId), activeCompanyOf(userId)))
+    .for("update");
+  return row ?? null;
 }
 
 export async function lockCompanyFile(

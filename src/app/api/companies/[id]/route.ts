@@ -1,6 +1,6 @@
 import { handle, parseId, readJson } from "@/server/http";
 import { requireUserId } from "@/server/session";
-import { deleteCompany, getCompany, renameCompany } from "@/services/company.service";
+import { deleteCompany, getCompany, updateCompany } from "@/services/company.service";
 import { CompanyBody } from "@/shared/company-body";
 
 const NOT_FOUND = "Company not found.";
@@ -19,7 +19,9 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
     const userId = await requireUserId(request);
     const companyId = parseId(id, NOT_FOUND);
     const body = await readJson(request, CompanyBody);
-    return Response.json(await renameCompany(userId, companyId, body.name));
+    return Response.json(
+      await updateCompany(userId, companyId, { name: body.name, fontKey: body.fontKey }),
+    );
   });
 }
 

@@ -1,7 +1,7 @@
 import { handle, parseId, readJson } from "@/server/http";
 import { requireUserId } from "@/server/session";
-import { deleteTender, getTender, renameTender } from "@/services/tender.service";
-import { RenameTenderBody } from "@/shared/tender-body";
+import { deleteTender, getTender, updateTender } from "@/services/tender.service";
+import { UpdateTenderBody } from "@/shared/tender-body";
 
 const NOT_FOUND = "Tender not found.";
 
@@ -19,8 +19,8 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
     const { id } = await ctx.params;
     const userId = await requireUserId(request);
     const tenderId = parseId(id, NOT_FOUND);
-    const body = await readJson(request, RenameTenderBody);
-    const tender = await renameTender(userId, tenderId, body.name);
+    const body = await readJson(request, UpdateTenderBody);
+    const tender = await updateTender(userId, tenderId, body);
     return Response.json(tender);
   });
 }

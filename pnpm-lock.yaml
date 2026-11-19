@@ -166,7 +166,37 @@ importers:
 
   .:
     dependencies:
+      '@fontsource/anek-devanagari':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/eczar':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/gotu':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/khand':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/laila':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/mukta':
+        specifier: 5.3.0
+        version: 5.3.0
       '@fontsource/noto-sans-devanagari':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/noto-serif-devanagari':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/poppins':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/tiro-devanagari-hindi':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/yatra-one':
         specifier: 5.3.0
         version: 5.3.0
       '@napi-rs/canvas':
@@ -1059,8 +1089,38 @@ packages:
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
+  '@fontsource/anek-devanagari@5.3.0':
+    resolution: {integrity: sha512-xm1njSXuFruCRCv747+fUcI8fluLn0lTxsHOeHGC/17zVH5D3FuSSttN9vNCvDrtopLLAiL4lvG65WErCWX85A==}
+
+  '@fontsource/eczar@5.3.0':
+    resolution: {integrity: sha512-HIDqQVs2NhNlm8W0wXABW45H+CGIJ7EhsYZ4iN0/Wz+FByYS+vlxvxGokN4x4A6Bbmru4kAujE7VM0CuoR47ZA==}
+
+  '@fontsource/gotu@5.3.0':
+    resolution: {integrity: sha512-nffNFaTt5gRsDA/yaihDzuTbcfDbe30M5UJi5FMfJfBZSW67yy3nVtkpJK+6zF6lbYiIBNXd+SxN0+OP2UJHFQ==}
+
+  '@fontsource/khand@5.3.0':
+    resolution: {integrity: sha512-XgRPIi8UxIdvugPUPTjv2tQMSyqAvsZS5dnpvugLAMwnxIrbFM+4uSjpg6psTlTsN5AigUAnoX1Xum0o2OtA5w==}
+
+  '@fontsource/laila@5.3.0':
+    resolution: {integrity: sha512-vtIPlFZrb7VZIBfFdtO/ayWbiK9KD3lyrEqobZUbCLBy98Uz/IdwEoPSq0+jmeAexzY2PlngVmE0L8dT2NnTrQ==}
+
+  '@fontsource/mukta@5.3.0':
+    resolution: {integrity: sha512-BIM9rx9SmHOcVR8cmOba9LnaFwhfiaFcclwgKV9rH4DIdCmD/tBBhtY02GGukuayxSbqfZ6pXzSO88IigTewDw==}
+
   '@fontsource/noto-sans-devanagari@5.3.0':
     resolution: {integrity: sha512-7khYmipS/5KAUUmrO1DKir8yL8XI00d0+ZE9BqbS8XF1jzObv6CpPOk3UeYxF+Pvi8bx9bBvprBCOcbx/eQWTQ==}
+
+  '@fontsource/noto-serif-devanagari@5.3.0':
+    resolution: {integrity: sha512-POketgM+TcAbtQCpl5GUmlCVvV7zGnFmLlQTIVxp0ePZkKTJ1UhpeyscIpgljOzHjrVzXPj7x1lSXl2W/wI3Gg==}
+
+  '@fontsource/poppins@5.3.0':
+    resolution: {integrity: sha512-cms1nM7U6SN8epIV1WMVOV8VsA645aSm3wHfzIQnkk188U341ThbJGSl2Sv54V29gnDbT2arMPfLzvVIIVCceQ==}
+
+  '@fontsource/tiro-devanagari-hindi@5.3.0':
+    resolution: {integrity: sha512-nlREPH/UItPmrRg2RY4O/oQNBtbwAzKyHk3ZexW1b75p8YrjmhdiPWOg9rm6dyM5v8FnIR392BG3Fdhu3+wTkg==}
+
+  '@fontsource/yatra-one@5.3.0':
+    resolution: {integrity: sha512-4lCIB+rkftIhBDklcZUgYFtzqNVIcAb+hdMGb6eDHtCH26cg2KU9lPWpZZScCaDlEfBpBxcElfVW4Plxx+R1MA==}
 
   '@hono/node-server@2.1.5':
     resolution: {integrity: sha512-MgP/I06GdvsilDspMk/qmRzpk8LOUStP6jFAbSRi40W09DhoyUn+Mj7eyKICPqeYKybOjVFLVIAQzvu1bfIa7Q==}
@@ -6411,7 +6471,27 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
+  '@fontsource/anek-devanagari@5.3.0': {}
+
+  '@fontsource/eczar@5.3.0': {}
+
+  '@fontsource/gotu@5.3.0': {}
+
+  '@fontsource/khand@5.3.0': {}
+
+  '@fontsource/laila@5.3.0': {}
+
+  '@fontsource/mukta@5.3.0': {}
+
   '@fontsource/noto-sans-devanagari@5.3.0': {}
+
+  '@fontsource/noto-serif-devanagari@5.3.0': {}
+
+  '@fontsource/poppins@5.3.0': {}
+
+  '@fontsource/tiro-devanagari-hindi@5.3.0': {}
+
+  '@fontsource/yatra-one@5.3.0': {}
 
   '@hono/node-server@2.1.5(hono@4.13.13)':
     dependencies:

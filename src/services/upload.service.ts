@@ -62,8 +62,12 @@ export function checkUploadPath(
   }
   return {
     maximumSizeInBytes: limit.maxBytes,
-    allowedContentTypes: [...new Set(limit.extensions.map((ext) => contentTypeOfKey(`f.${ext}`)))],
+    allowedContentTypes: [...new Set(limit.extensions.map((ext) => baseContentType(`f.${ext}`)))],
   };
+}
+
+function baseContentType(key: string): string {
+  return contentTypeOfKey(key).split(";")[0]?.trim() ?? "";
 }
 
 export async function receiveUpload(

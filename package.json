@@ -23,7 +23,17 @@
     "postinstall": "node scripts/copy-reader-assets.mjs"
   },
   "dependencies": {
+    "@fontsource/anek-devanagari": "5.3.0",
+    "@fontsource/eczar": "5.3.0",
+    "@fontsource/gotu": "5.3.0",
+    "@fontsource/khand": "5.3.0",
+    "@fontsource/laila": "5.3.0",
+    "@fontsource/mukta": "5.3.0",
     "@fontsource/noto-sans-devanagari": "5.3.0",
+    "@fontsource/noto-serif-devanagari": "5.3.0",
+    "@fontsource/poppins": "5.3.0",
+    "@fontsource/tiro-devanagari-hindi": "5.3.0",
+    "@fontsource/yatra-one": "5.3.0",
     "@napi-rs/canvas": "1.0.11",
     "@sparticuz/chromium": "153.0.0",
     "@tanstack/react-query": "^5.104.2",

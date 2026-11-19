@@ -45,6 +45,29 @@ for (const script of ["devanagari", "latin"]) {
   }
 }
 
+const COMPANY_FONTS = [
+  { id: "poppins", weights: [400, 700] },
+  { id: "noto-serif-devanagari", weights: [400, 700] },
+  { id: "mukta", weights: [400, 700] },
+  { id: "khand", weights: [400, 700] },
+  { id: "eczar", weights: [400, 700] },
+  { id: "tiro-devanagari-hindi", weights: [400] },
+  { id: "yatra-one", weights: [400] },
+  { id: "anek-devanagari", weights: [400, 700] },
+  { id: "laila", weights: [400, 700] },
+  { id: "gotu", weights: [400] },
+];
+
+for (const font of COMPANY_FONTS) {
+  const root = path.dirname(require.resolve(`@fontsource/${font.id}/package.json`));
+  for (const subset of ["devanagari", "latin"]) {
+    for (const weight of font.weights) {
+      const fileName = `${font.id}-${subset}-${weight}-normal.woff2`;
+      await cp(path.join(root, "files", fileName), path.join(publicDir, "fonts", fileName));
+    }
+  }
+}
+
 console.log(
   "reader assets copied to public/pdfjs, public/tessdata, public/tesseract and public/fonts",
 );

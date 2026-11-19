@@ -5,11 +5,17 @@ import type {
   Template,
   TemplateLanguage,
   Tender,
+  TenderType,
 } from "@/types";
+import { isFontKey } from "@/shared/fonts";
 
 export interface TenderDbRow {
   id: string;
   name: string;
+  type: TenderType;
+  companyId: string | null;
+  templateId: string | null;
+  values: Record<string, string> | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -18,6 +24,10 @@ export function toTender(row: TenderDbRow): Tender {
   return {
     id: row.id,
     name: row.name,
+    type: row.type,
+    companyId: row.companyId,
+    templateId: row.templateId,
+    values: row.values ?? {},
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -26,6 +36,7 @@ export function toTender(row: TenderDbRow): Tender {
 export interface CompanyDbRow {
   id: string;
   name: string;
+  fontKey: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,6 +63,7 @@ export function toCompany(row: CompanyDbRow, files: readonly CompanyFileDbRow[])
   return {
     id: row.id,
     name: row.name,
+    fontKey: isFontKey(row.fontKey) ? row.fontKey : null,
     files: {
       letterhead: toCompanyFile(own.find((file) => file.kind === "letterhead")),
       seal: toCompanyFile(own.find((file) => file.kind === "seal")),
