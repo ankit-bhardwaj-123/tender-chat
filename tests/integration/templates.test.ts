@@ -152,7 +152,7 @@ describe("templates API", () => {
     const res = await fileRoute.GET(apiRequest(owner, "/x"), idParams(template.id));
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("text/html; charset=utf-8");
-    expect(res.headers.get("content-security-policy")).toBe("sandbox");
+    expect(res.headers.get("content-security-policy")?.split("; ")).toContain("sandbox");
     expect(res.headers.get("cache-control")).toBe("private, no-store");
     expect(await res.text()).toBe(HTML);
   });

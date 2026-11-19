@@ -2,6 +2,7 @@ import { handle, parseId, readUploads } from "@/server/http";
 import { requireUserId } from "@/server/session";
 import { openTemplateFile, replaceTemplateFile } from "@/services/template.service";
 import { receiveUpload } from "@/services/upload.service";
+import { TEMPLATE_FILE_POLICY } from "@/shared/template-file-policy";
 
 const NOT_FOUND = "Template not found.";
 
@@ -13,7 +14,7 @@ export async function GET(request: Request, ctx: { params: Promise<{ id: string 
     return new Response(html, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
-        "Content-Security-Policy": "sandbox",
+        "Content-Security-Policy": TEMPLATE_FILE_POLICY,
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
       },

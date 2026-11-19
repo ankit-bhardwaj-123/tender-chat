@@ -4,6 +4,14 @@ All notable changes to this project are recorded here (newest first).
 
 ## [Unreleased]
 
+### Fixed
+
+- 2026-11-19: Template View now really blocks scripts: the app-wide CSP in `next.config.ts` was overriding the route's `sandbox` policy, so a later header rule for `/api/templates/:id/file` sends the shared sandbox policy. (`next.config.ts`, `src/shared/template-file-policy.ts`, `src/app/api/templates/[id]/file/route.ts`)
+- 2026-11-19: A stored (Blob) upload must have a file extension allowed for its kind, so a company PDF can no longer be registered as a template. (`src/services/upload.service.ts`)
+- 2026-11-19: Placeholder names are NFC-normalised, so a Hindi name typed in two Unicode forms shows once. (`src/shared/placeholders.ts`)
+- 2026-11-19: A network failure while editing or deleting a template shows "Something went wrong, please try again." instead of "Failed to fetch". (`src/lib/templates.ts`)
+- 2026-11-19: Template tests check that the served policy contains `sandbox` instead of being exactly `sandbox`. (`tests/integration/{templates,template-edges}.test.ts`)
+
 ### Changed
 
 - 2026-11-18: Uploads now name their kind (`companyFile` 10 MB PDF/JPG, `template` 2 MB HTML), sent with each Blob upload and checked by the token route; the file field also takes HTML and can hide Remove for a saved file; the stored-key check covers template files. (`src/services/upload.service.ts`, `src/repositories/upload.repository.ts`, `src/lib/{file-upload,companies}.ts`, `src/app/api/uploads/token/route.ts`, `src/app/api/companies/[id]/files/[kind]/route.ts`, `src/services/company.service.ts`, `src/server/adapters/blob-storage.ts`, `src/components/companies/file-field.tsx`, `tests/unit/uploads.test.ts`)

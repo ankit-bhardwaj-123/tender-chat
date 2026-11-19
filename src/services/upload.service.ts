@@ -78,7 +78,12 @@ export async function receiveUpload(
   }
 
   const match = file.key.match(KEY_PATTERN);
-  if (!match || match[1] !== userId || file.fileName.length > FILE_NAME_MAX_LENGTH) {
+  if (
+    !match ||
+    match[1] !== userId ||
+    !UPLOAD_LIMITS[kind].extensions.includes(match[2] ?? "") ||
+    file.fileName.length > FILE_NAME_MAX_LENGTH
+  ) {
     throw invalid("Upload the file first.");
   }
   if (await isStorageKeyUsed(file.key)) {

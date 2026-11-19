@@ -29,6 +29,12 @@ export function templateFileUrl(template: Template): string {
   return `/api/templates/${template.id}/file?v=${encodeURIComponent(template.updatedAt)}`;
 }
 
+async function send(url: string, init: RequestInit): Promise<Response> {
+  return fetch(url, init).catch(() => {
+    throw new Error(FAILED);
+  });
+}
+
 async function failure(res: Response): Promise<Error> {
   if (res.status >= 500) return new Error(FAILED);
   const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
@@ -61,7 +67,7 @@ export async function createTemplate(fields: TemplateFields, file: File): Promis
 }
 
 export async function editTemplate(templateId: string, fields: TemplateFields): Promise<Template> {
-  const res = await fetch(`/api/templates/${templateId}`, {
+  const res = await send(`/api/templates/${templateId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(fields),
@@ -77,6 +83,6 @@ export async function replaceTemplateFile(templateId: string, file: File): Promi
 }
 
 export async function deleteTemplate(templateId: string): Promise<void> {
-  const res = await fetch(`/api/templates/${templateId}`, { method: "DELETE" });
+  const res = await send(`/api/templates/${templateId}`, { method: "DELETE" });
   if (!res.ok) throw await failure(res);
 }

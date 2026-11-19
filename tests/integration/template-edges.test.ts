@@ -153,7 +153,7 @@ describe("template file names and keys", () => {
     const html = "<p>{{officer}}</p><script>document.title='x'</script>";
     const created = await createTemplate(owner, "Script", html);
     const res = await fileRoute.GET(apiRequest(owner, "/x"), idParams(created.id));
-    expect(res.headers.get("content-security-policy")).toBe("sandbox");
+    expect(res.headers.get("content-security-policy")?.split("; ")).toContain("sandbox");
     expect(await res.text()).toBe(html);
   });
 });

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { TEMPLATE_FILE_POLICY } from "./src/shared/template-file-policy";
 
 // Set explicitly so Next doesn't treat a lockfile in a parent folder as the project root.
 const projectRoot = process.cwd();
@@ -40,7 +41,13 @@ const printerFiles = [
 
 const nextConfig: NextConfig = {
   async headers() {
-    return [{ source: "/(.*)", headers: securityHeaders }];
+    return [
+      { source: "/(.*)", headers: securityHeaders },
+      {
+        source: "/api/templates/:id/file",
+        headers: [{ key: "Content-Security-Policy", value: TEMPLATE_FILE_POLICY }],
+      },
+    ];
   },
   cacheComponents: true,
   serverExternalPackages: ["playwright-core", "@sparticuz/chromium"],
