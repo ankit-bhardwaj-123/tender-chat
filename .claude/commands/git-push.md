@@ -1,4 +1,4 @@
-<!-- ---
+---
 description: Commit local work, pull the current branch from GitHub, resolve conflicts safely, then push
 argument-hint: "Optional commit message"
 allowed-tools: Read, Edit, Grep, Glob, AskUserQuestion, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git remote:*), Bash(git rev-parse:*), Bash(git add:*), Bash(git commit:*), Bash(git fetch:*), Bash(git pull:*), Bash(git merge:*), Bash(git push:*), Bash(git ls-files:*), Bash(git show:*), Bash(git checkout --ours:*), Bash(git checkout --theirs:*), Bash(pnpm typecheck), Bash(pnpm lint)
@@ -74,4 +74,4 @@ Conflicts: <files and how each was resolved, or none>
 Pushed:   yes / no (<why>)
 ```
 
-If `pnpm-lock.yaml` was in conflict, remind the owner to run `pnpm install` and push the new lockfile. -->
+If `pnpm-lock.yaml` was in conflict, remind the owner to run `pnpm install` and push the new lockfile.
