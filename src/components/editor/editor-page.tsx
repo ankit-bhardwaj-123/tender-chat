@@ -1,8 +1,10 @@
 "use client";
 
+import type { Tender } from "@/types";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useDefaultLayout } from "react-resizable-panels";
 import { Button } from "@/components/ui/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
@@ -10,21 +12,25 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { companyFileUrl, useCompanies } from "@/lib/companies";
 import {
+  draftChanges,
   EDITOR_SPLIT_KEY,
   NOT_FOUND,
-  sameValues,
+  rebaseDraft,
   splitStorage,
+  type TenderDraft,
+  useAutosave,
   useTemplateHtml,
   useTender,
 } from "@/lib/editor";
 import { useMediaQuery } from "@/lib/hooks";
 import { useTemplates } from "@/lib/templates";
+import { fontOf, fontStack } from "@/shared/fonts";
+import { findPlaceholders } from "@/shared/placeholders";
 import { type EditorChange, EditorTopBar } from "./editor-top-bar";
 import { PagePreview } from "./page-preview";
 import { PlaceholderForm } from "./placeholder-form";
 
 const DESKTOP_QUERY = "(min-width: 768px)";
-const LEAVE = "Leave without saving?";
 
 const CHANGING: Record<EditorChange, string> = {
   company: "Changing the company…",
@@ -34,20 +40,17 @@ const CHANGING: Record<EditorChange, string> = {
 
 interface DraftState {
   key: string;
-  values: Record<string, string>;
+  base: Tender;
+  draft: TenderDraft;
 }
 
-function leavesPage(event: MouseEvent): boolean {
-  if (event.defaultPrevented || event.button !== 0) return false;
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false;
-  const target = event.target instanceof Element ? event.target.closest("a[href]") : null;
-  if (!(target instanceof HTMLAnchorElement) || target.target === "_blank") return false;
-  const url = new URL(target.href, window.location.href);
-  return url.origin === window.location.origin && url.pathname !== window.location.pathname;
+function draftOf(tender: Tender): TenderDraft {
+  return { values: tender.values, customHtml: tender.customHtml, canvas: tender.canvas };
 }
 
 export function EditorPage() {
   const { tenderId } = useParams<{ tenderId: string }>();
+  const queryClient = useQueryClient();
   const tender = useTender(tenderId);
   const companies = useCompanies();
   const templates = useTemplates();
@@ -56,7 +59,7 @@ export function EditorPage() {
     id: EDITOR_SPLIT_KEY,
     storage: splitStorage(),
   });
-  const [draft, setDraft] = useState<DraftState | null>(null);
+  const [state, setState] = useState<DraftState | null>(null);
   const [changing, setChanging] = useState<EditorChange | null>(null);
 
   const company = companies.data?.find((item) => item.id === tender.data?.companyId) ?? null;
@@ -64,27 +67,18 @@ export function EditorPage() {
   const html = useTemplateHtml(template);
 
   const draftKey = tender.data ? `${tender.data.id}:${tender.data.templateId ?? ""}` : null;
-  if (tender.data && draftKey !== null && draft?.key !== draftKey) {
-    setDraft({ key: draftKey, values: tender.data.values });
+  if (tender.data && draftKey !== null && state?.key !== draftKey) {
+    setState({ key: draftKey, base: tender.data, draft: draftOf(tender.data) });
+  } else if (tender.data && state !== null && state.base.updatedAt !== tender.data.updatedAt) {
+    setState({
+      key: state.key,
+      base: tender.data,
+      draft: rebaseDraft(state.draft, state.base, tender.data),
+    });
   }
-  const values = draft?.values ?? tender.data?.values ?? {};
-  const dirty = tender.data ? !sameValues(values, tender.data.values) : false;
-
-  useEffect(() => {
-    if (!dirty) return;
-    const beforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
-    const onClick = (event: MouseEvent) => {
-      if (!leavesPage(event) || window.confirm(LEAVE)) return;
-      event.preventDefault();
-      event.stopPropagation();
-    };
-    window.addEventListener("beforeunload", beforeUnload);
-    document.addEventListener("click", onClick, true);
-    return () => {
-      window.removeEventListener("beforeunload", beforeUnload);
-      document.removeEventListener("click", onClick, true);
-    };
-  }, [dirty]);
+  const draft = state?.draft ?? (tender.data ? draftOf(tender.data) : null);
+  const changes = tender.data && draft && changing === null ? draftChanges(draft, tender.data) : {};
+  const autosave = useAutosave(queryClient, tenderId, changes);
 
   if (tender.isPending || companies.isPending || templates.isPending) {
     return (
@@ -151,28 +145,51 @@ export function EditorPage() {
 
   const updating = changing !== null || (template !== null && html.isFetching);
 
-  const changeValue = (name: string, value: string) =>
-    setDraft((current) => ({
-      key: current?.key ?? draftKey ?? "",
-      values: { ...(current?.values ?? values), [name]: value },
-    }));
+  const current = draft ?? draftOf(tender.data);
+  const saved = tender.data;
+  const update = (change: (draft: TenderDraft) => Partial<TenderDraft>) =>
+    setState((previous) => {
+      const base = previous?.draft ?? current;
+      return {
+        key: previous?.key ?? draftKey ?? "",
+        base: previous?.base ?? saved,
+        draft: { ...base, ...change(base) },
+      };
+    });
+  const changeValues = (next: Record<string, string>) =>
+    update((base) => ({ values: { ...base.values, ...next } }));
+
+  const source = template ? (current.customHtml ?? html.data) : undefined;
+  const placeholders = template
+    ? current.customHtml !== null
+      ? findPlaceholders(current.customHtml)
+      : template.placeholders
+    : null;
+  const fontKey = company?.fontKey ?? null;
 
   const form = (
     <div className="h-full overflow-y-auto">
       <PlaceholderForm
-        placeholders={template?.placeholders ?? null}
-        values={values}
-        onChange={changeValue}
+        placeholders={placeholders}
+        values={current.values}
+        onChange={(name, value) => changeValues({ [name]: value })}
       />
     </div>
   );
   const preview = (
     <PagePreview
+      tenderId={tender.data.id}
       hasTemplate={template !== null}
-      html={html.data}
+      source={source}
+      edited={current.customHtml !== null}
       htmlError={html.isError}
-      values={values}
-      fontKey={company?.fontKey ?? null}
+      values={current.values}
+      fontKey={fontKey}
+      fontFamily={fontStack(fontOf(fontKey))}
+      canvas={current.canvas}
+      onValues={changeValues}
+      onHtml={(customHtml) => update(() => ({ customHtml }))}
+      onCanvas={(change) => update((base) => ({ canvas: change(base.canvas) }))}
       letterheadUrl={
         company?.files.letterhead
           ? `${companyFileUrl(company.id, "letterhead")}?v=${encodeURIComponent(company.files.letterhead.uploadedAt)}`
@@ -196,8 +213,10 @@ export function EditorPage() {
         templates={templates.data}
         company={company}
         template={template}
-        draft={values}
-        dirty={dirty}
+        draft={current}
+        saveStatus={autosave.status}
+        onRetrySave={autosave.retry}
+        onFlushSave={autosave.flush}
         onChanging={setChanging}
       />
       <div className="relative flex min-h-0 flex-1 flex-col" aria-busy={updating}>

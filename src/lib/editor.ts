@@ -1,6 +1,7 @@
-import type { Template, Tender } from "@/types";
+import type { Template, Tender, TenderCanvas, TenderImage } from "@/types";
 import { type QueryClient, useQuery } from "@tanstack/react-query";
-import { useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { sendWithFiles } from "@/lib/file-upload";
 import { fillTemplate, fontOverrideCss } from "@/shared/fill-template";
 import { fontFaceCss, fontOf, fontStack } from "@/shared/fonts";
 
@@ -9,6 +10,22 @@ export interface TenderChanges {
   companyId?: string | null;
   templateId?: string | null;
   values?: Record<string, string>;
+  customHtml?: string | null;
+  canvas?: TenderCanvas;
+}
+
+export interface TenderDraft {
+  values: Record<string, string>;
+  customHtml: string | null;
+  canvas: TenderCanvas;
+}
+
+export type SaveStatus = "saved" | "saving" | "failed";
+
+export interface Autosave {
+  status: SaveStatus;
+  flush: () => Promise<void>;
+  retry: () => void;
 }
 
 export interface SplitStorage {
@@ -21,10 +38,17 @@ export type PreviewZoom = "fit" | number;
 export const NOT_FOUND = "not_found";
 export const A4_WIDTH_PX = 794;
 export const A4_HEIGHT_PX = 1123;
+export const PX_PER_MM = A4_WIDTH_PX / 210;
+export const SEAL_MARGIN_MM = 25;
 export const ZOOM_STEPS: readonly number[] = [50, 60, 70, 75, 100, 125, 150, 200];
 export const EDITOR_SPLIT_KEY = "tender-chat:editor-split";
 
 const FAILED = "Something went wrong, please try again.";
+const AUTOSAVE_MS = 800;
+const KEEPALIVE_MAX_BYTES = 60000;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const IMAGE_EXTENSIONS: readonly string[] = ["jpg", "jpeg", "png"];
+const NO_ANSWER = "no internet connection, or the server didn't answer";
 const ZOOM_KEY = "tender-chat:preview-zoom";
 const SIDE_PADDING_PX = 16;
 const MIN_FIT_SCALE = 0.1;
@@ -114,10 +138,20 @@ export function keptValues(
   return kept;
 }
 
+function normalizedValues(values: Record<string, string>): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const [key, value] of Object.entries(values)) {
+    map.set(key.normalize("NFC").replace(/\s+/g, " ").trim(), value.normalize("NFC"));
+  }
+  return map;
+}
+
 export function sameValues(a: Record<string, string>, b: Record<string, string>): boolean {
-  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  const left = normalizedValues(a);
+  const right = normalizedValues(b);
+  const keys = new Set([...left.keys(), ...right.keys()]);
   for (const key of keys) {
-    if ((a[key] ?? "") !== (b[key] ?? "")) return false;
+    if ((left.get(key) ?? "") !== (right.get(key) ?? "")) return false;
   }
   return true;
 }
@@ -169,4 +203,143 @@ export function savePreviewZoom(zoom: PreviewZoom): void {
 
 export function usePreviewZoom(): PreviewZoom {
   return useSyncExternalStore(subscribeZoom, readZoom, () => "fit");
+}
+
+export function draftChanges(draft: TenderDraft, saved: Tender): TenderChanges {
+  const changes: TenderChanges = {};
+  if (!sameValues(draft.values, saved.values)) changes.values = draft.values;
+  if (draft.customHtml !== saved.customHtml) changes.customHtml = draft.customHtml;
+  if (JSON.stringify(draft.canvas) !== JSON.stringify(saved.canvas)) changes.canvas = draft.canvas;
+  return changes;
+}
+
+export function rebaseDraft(draft: TenderDraft, base: Tender, server: Tender): TenderDraft {
+  return {
+    values: sameValues(draft.values, base.values) ? server.values : draft.values,
+    customHtml: draft.customHtml === base.customHtml ? server.customHtml : draft.customHtml,
+    canvas:
+      JSON.stringify(draft.canvas) === JSON.stringify(base.canvas) ? server.canvas : draft.canvas,
+  };
+}
+
+function byteLength(text: string): number {
+  return new TextEncoder().encode(text).length;
+}
+
+function sendOnLeave(queryClient: QueryClient, tenderId: string, body: string) {
+  queryClient.setQueryData<Tender>(tenderKey(tenderId), (tender) =>
+    tender ? { ...tender, ...(JSON.parse(body) as TenderChanges) } : tender,
+  );
+  void fetch(`/api/tenders/${tenderId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body,
+    keepalive: byteLength(body) < KEEPALIVE_MAX_BYTES,
+  })
+    .then(async (res) => {
+      if (res.ok) queryClient.setQueryData(tenderKey(tenderId), (await res.json()) as Tender);
+    })
+    .catch(() => {});
+}
+
+export function useAutosave(
+  queryClient: QueryClient,
+  tenderId: string,
+  changes: TenderChanges,
+): Autosave {
+  const body = JSON.stringify(changes);
+  const empty = body === "{}";
+  const [failedBody, setFailedBody] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const pending = useRef<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const send = (next: string) => {
+    queue.current = queue.current.then(async () => {
+      try {
+        await saveTender(queryClient, tenderId, JSON.parse(next) as TenderChanges);
+        if (pending.current === next) pending.current = null;
+        setFailedBody(null);
+      } catch {
+        setFailedBody(next);
+      }
+    });
+  };
+  const sendRef = useRef(send);
+
+  useEffect(() => {
+    sendRef.current = send;
+  });
+
+  useEffect(() => {
+    pending.current = empty ? null : body;
+    if (empty) return;
+    timer.current = setTimeout(() => sendRef.current(body), AUTOSAVE_MS);
+    return () => clearTimeout(timer.current);
+  }, [body, empty, attempt]);
+
+  useEffect(() => {
+    const leave = () => {
+      if (pending.current !== null) sendOnLeave(queryClient, tenderId, pending.current);
+      pending.current = null;
+    };
+    const onHide = () => {
+      if (document.visibilityState === "hidden") leave();
+    };
+    const currentQueue = queue;
+    window.addEventListener("pagehide", leave);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      window.removeEventListener("pagehide", leave);
+      document.removeEventListener("visibilitychange", onHide);
+      void currentQueue.current.then(leave);
+    };
+  }, [queryClient, tenderId]);
+
+  const flush = async () => {
+    clearTimeout(timer.current);
+    if (pending.current !== null) send(pending.current);
+    await queue.current;
+  };
+
+  const status: SaveStatus = empty ? "saved" : failedBody === body ? "failed" : "saving";
+  return {
+    status,
+    flush,
+    retry: () => {
+      setFailedBody(null);
+      setAttempt((count) => count + 1);
+    },
+  };
+}
+
+export function tenderImageUrl(tenderId: string, imageId: string): string {
+  return `/api/tenders/${tenderId}/images/${imageId}`;
+}
+
+export function imageProblem(file: File): string | null {
+  const extension = file.name.toLowerCase().match(/\.([a-z0-9]{1,5})$/)?.[1] ?? "";
+  if (!IMAGE_EXTENSIONS.includes(extension)) return "it must be a JPG or PNG";
+  if (file.size === 0) return "the file is empty";
+  if (file.size > MAX_IMAGE_BYTES) return "it must be at most 5 MB";
+  return null;
+}
+
+export async function uploadTenderImage(tenderId: string, file: File): Promise<TenderImage> {
+  const problem = imageProblem(file);
+  if (problem) throw new Error(problem);
+  const res = await sendWithFiles(`/api/tenders/${tenderId}/images`, "POST", {}, [
+    { name: "file", kind: "tenderImage", file },
+  ]);
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+    const message = body?.error?.message;
+    throw new Error(message ? message.replace(/\.$/, "") : NO_ANSWER);
+  }
+  return (await res.json()) as TenderImage;
+}
+
+export async function deleteTenderImage(tenderId: string, imageId: string): Promise<void> {
+  await fetch(tenderImageUrl(tenderId, imageId), { method: "DELETE" }).catch(() => {});
 }

@@ -2,7 +2,7 @@
 
 import type { Company, Template, Tender } from "@/types";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { CircleAlert, FileDown, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { COMPANIES_KEY, saveCompany } from "@/lib/companies";
-import { keptValues, saveTender } from "@/lib/editor";
+import { keptValues, type SaveStatus, saveTender, type TenderDraft } from "@/lib/editor";
 import { FONTS, fontOf, fontStack } from "@/shared/fonts";
 
 interface EditorTopBarProps {
@@ -34,8 +34,10 @@ interface EditorTopBarProps {
   templates: readonly Template[];
   company: Company | null;
   template: Template | null;
-  draft: Record<string, string>;
-  dirty: boolean;
+  draft: TenderDraft;
+  saveStatus: SaveStatus;
+  onRetrySave: () => void;
+  onFlushSave: () => Promise<void>;
   onChanging: (change: EditorChange | null) => void;
 }
 
@@ -55,19 +57,21 @@ export function EditorTopBar({
   company,
   template,
   draft,
-  dirty,
+  saveStatus,
+  onRetrySave,
+  onFlushSave,
   onChanging,
 }: EditorTopBarProps) {
   const queryClient = useQueryClient();
-  const [busy, setBusy] = useState<EditorChange | "save" | null>(null);
+  const [busy, setBusy] = useState<EditorChange | null>(null);
   const [pendingTemplate, setPendingTemplate] = useState<Template | null>(null);
 
-  const run = async (label: EditorChange | "save", action: () => Promise<unknown>) => {
+  const run = async (label: EditorChange, action: () => Promise<unknown>) => {
     setBusy(label);
-    if (label !== "save") onChanging(label);
     try {
+      await onFlushSave();
+      onChanging(label);
       await action();
-      if (label === "save") toast.success("Saved.");
     } catch (error) {
       failed(error);
     } finally {
@@ -83,7 +87,8 @@ export function EditorTopBar({
     void run("template", () =>
       saveTender(queryClient, tender.id, {
         templateId: next.id,
-        values: keptValues(draft, next.placeholders),
+        values: keptValues(draft.values, next.placeholders),
+        canvas: draft.canvas,
       }),
     );
 
@@ -177,19 +182,36 @@ export function EditorTopBar({
         </SelectContent>
       </Select>
 
-      <div className="ml-auto flex items-center gap-2">
-        {busy !== null && busy !== "save" && (
-          <Loader2 className="size-4 animate-spin text-muted-foreground" aria-label="Saving…" />
-        )}
-        <Button
-          disabled={busy !== null || !dirty}
-          onClick={() =>
-            void run("save", () => saveTender(queryClient, tender.id, { values: draft }))
-          }
-        >
-          {busy === "save" && <Loader2 className="animate-spin" aria-hidden />}
-          {busy === "save" ? "Saving…" : "Save"}
-        </Button>
+      <div className="ml-auto flex items-center gap-3">
+        <span role="status" className="flex items-center gap-1.5 text-xs">
+          {busy !== null || saveStatus === "saving" ? (
+            <>
+              <Loader2 className="size-3.5 animate-spin text-muted-foreground" aria-hidden />
+              <span className="text-muted-foreground">Saving…</span>
+            </>
+          ) : saveStatus === "failed" ? (
+            <>
+              <CircleAlert className="size-3.5 text-destructive" aria-hidden />
+              <span className="text-destructive">Not saved</span>
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto px-1 text-xs"
+                onClick={onRetrySave}
+              >
+                Retry
+              </Button>
+            </>
+          ) : (
+            <span className="text-muted-foreground">Saved</span>
+          )}
+        </span>
+        <span title="Coming soon">
+          <Button disabled>
+            <FileDown aria-hidden />
+            Generate PDF
+          </Button>
+        </span>
       </div>
 
       <AlertDialog

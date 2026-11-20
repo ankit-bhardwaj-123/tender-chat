@@ -39,6 +39,66 @@ describe("tender bodies", () => {
     expect(UpdateTenderBody.safeParse({ values: ["a"] }).success).toBe(false);
   });
 
+  it("accepts the edited page and the canvas, and null for the edited page", () => {
+    const canvas = {
+      items: [
+        {
+          id: "a",
+          kind: "text",
+          x: 10,
+          y: 320,
+          width: 70,
+          height: 10,
+          text: "नमस्ते",
+          imageId: null,
+        },
+        { id: "b", kind: "image", x: 0, y: 0, width: 45, height: 30, text: "", imageId: ID },
+      ],
+      seal: { shown: false, x: 150, y: 200, width: 35 },
+    };
+    expect(UpdateTenderBody.parse({ customHtml: "<p>{{a}}</p>", canvas })).toEqual({
+      customHtml: "<p>{{a}}</p>",
+      canvas,
+    });
+    expect(UpdateTenderBody.parse({ customHtml: null })).toEqual({ customHtml: null });
+  });
+
+  it("rejects a bad edited page or canvas", () => {
+    const seal = { shown: true, x: null, y: null, width: 35 };
+    expect(UpdateTenderBody.safeParse({ customHtml: 5 }).success).toBe(false);
+    expect(UpdateTenderBody.safeParse({ canvas: { items: [] } }).success).toBe(false);
+    expect(
+      UpdateTenderBody.safeParse({
+        canvas: {
+          items: [
+            { id: "a", kind: "video", x: 0, y: 0, width: 1, height: 1, text: "", imageId: null },
+          ],
+          seal,
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      UpdateTenderBody.safeParse({
+        canvas: {
+          items: [
+            { id: "a", kind: "image", x: -1, y: 0, width: 1, height: 1, text: "", imageId: null },
+          ],
+          seal,
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      UpdateTenderBody.safeParse({
+        canvas: {
+          items: [
+            { id: "a", kind: "image", x: 0, y: 0, width: 1, height: 1, text: "", imageId: "x" },
+          ],
+          seal,
+        },
+      }).success,
+    ).toBe(false);
+  });
+
   it("drops unknown fields such as userId when it parses a body", () => {
     const parsed = UpdateTenderBody.parse({ name: "Road", userId: "someone-else", id: "x" });
     expect(parsed).toEqual({ name: "Road" });
@@ -55,6 +115,8 @@ describe("toTender", () => {
       companyId: null,
       templateId: null,
       values: null,
+      customHtml: null,
+      canvas: null,
       createdAt: new Date("2026-11-18T10:00:00.000Z"),
       updatedAt: new Date("2026-11-18T11:00:00.000Z"),
     };
@@ -65,6 +127,8 @@ describe("toTender", () => {
       companyId: null,
       templateId: null,
       values: {},
+      customHtml: null,
+      canvas: { items: [], seal: { shown: true, x: null, y: null, width: 35 } },
       createdAt: "2026-11-18T10:00:00.000Z",
       updatedAt: "2026-11-18T11:00:00.000Z",
     });

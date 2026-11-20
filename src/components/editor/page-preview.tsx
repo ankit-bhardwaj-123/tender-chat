@@ -1,10 +1,31 @@
 "use client";
 
-import { CircleAlert, Loader2, Maximize2, Minus, Plus } from "lucide-react";
+import type { TenderCanvas } from "@/types";
+import {
+  CircleAlert,
+  ImagePlus,
+  Loader2,
+  Maximize2,
+  Minus,
+  Plus,
+  RotateCcw,
+  Stamp,
+  Type,
+} from "lucide-react";
 import dynamic from "next/dynamic";
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import {
@@ -13,37 +34,70 @@ import {
   fitWidthScale,
   nextZoom,
   previewDocument,
+  PX_PER_MM,
   savePreviewZoom,
+  uploadTenderImage,
   usePreviewZoom,
   ZOOM_STEPS,
 } from "@/lib/editor";
+import {
+  attachEditing,
+  type EditingHandlers,
+  fillAttributes,
+  sealGapOf,
+  textBottomOf,
+} from "@/lib/page-editing";
+import { newImage, newTextBox } from "@/shared/canvas";
 import { valueHtml } from "@/shared/fill-template";
+import { CanvasLayer, type CanvasUpdate } from "./canvas-layer";
 
 const LetterheadPage = dynamic(() => import("./letterhead-page"), { ssr: false });
 
 const MIN_ZOOM = ZOOM_STEPS[0] ?? 50;
 const MAX_ZOOM = ZOOM_STEPS[ZOOM_STEPS.length - 1] ?? 200;
-const PX_PER_MM = A4_WIDTH_PX / 210;
-const SEAL_MARGIN_MM = 25;
 const SEAL_GAP_LINES = 2;
-const SEAL_WIDTH_MM = 35;
-const SEAL_WIDTH_PX = Math.round(SEAL_WIDTH_MM * PX_PER_MM);
+const SHEET_PADDING_PX = 16;
+const NEW_ITEM_OFFSET_MM = 20;
+const IMAGE_ACCEPT = ".jpg,.jpeg,.png,image/jpeg,image/png";
 
 interface PagePreviewProps {
+  tenderId: string;
   hasTemplate: boolean;
-  html: string | undefined;
+  source: string | undefined;
+  edited: boolean;
   htmlError: boolean;
   values: Record<string, string>;
   fontKey: string | null;
+  fontFamily: string;
   letterheadUrl: string | null;
   sealUrl: string | null;
+  canvas: TenderCanvas;
+  onValues: (values: Record<string, string>) => void;
+  onHtml: (html: string | null) => void;
+  onCanvas: (change: CanvasUpdate) => void;
   onRetry: () => void;
 }
 
 interface FrameState {
+  font: string;
   source: string;
   html: string;
   version: number;
+}
+
+interface Measure {
+  height: number;
+  sealTop: number;
+}
+
+interface Latest {
+  source: string;
+  handlers: EditingHandlers;
+}
+
+function uploadReason(error: unknown): string {
+  const message = error instanceof Error ? error.message : "unknown error";
+  return message.replace(/^Image must/, "it must").replace(/^The image/, "the image");
 }
 
 function patchFields(page: Document, values: Record<string, string>) {
@@ -51,6 +105,7 @@ function patchFields(page: Document, values: Record<string, string>) {
     const name = element.dataset.field ?? "";
     const value = values[name] ?? "";
     if (element.dataset.value === value && element.dataset.patched !== undefined) return;
+    if (element.dataset.composing !== undefined) return;
     element.dataset.patched = "";
     element.dataset.value = value;
     if (value === "") {
@@ -61,47 +116,39 @@ function patchFields(page: Document, values: Record<string, string>) {
       delete element.dataset.empty;
     }
   });
-}
-
-function lineHeightOf(page: Document): number {
-  const style = page.defaultView?.getComputedStyle(page.body);
-  const lineHeight = Number.parseFloat(style?.lineHeight ?? "");
-  if (Number.isFinite(lineHeight)) return lineHeight;
-  const fontSize = Number.parseFloat(style?.fontSize ?? "");
-  return (Number.isFinite(fontSize) ? fontSize : 16) * 1.2;
-}
-
-function textBottomOf(page: Document): number {
-  const range = page.createRange();
-  const walker = page.createTreeWalker(page.body, NodeFilter.SHOW_TEXT);
-  let bottom = 0;
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    if (!node.textContent?.trim()) continue;
-    range.selectNodeContents(node);
-    bottom = Math.max(bottom, range.getBoundingClientRect().bottom);
-  }
-  page.body.querySelectorAll("img").forEach((image) => {
-    bottom = Math.max(bottom, image.getBoundingClientRect().bottom);
-  });
-  return bottom;
+  fillAttributes(page, values);
 }
 
 export function PagePreview({
+  tenderId,
   hasTemplate,
-  html,
+  source,
+  edited,
   htmlError,
   values,
   fontKey,
+  fontFamily,
   letterheadUrl,
   sealUrl,
+  canvas,
+  onValues,
+  onHtml,
+  onCanvas,
   onRetry,
 }: PagePreviewProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const observer = useRef<ResizeObserver | null>(null);
+  const latest = useRef<Latest | null>(null);
   const [boxWidth, setBoxWidth] = useState(0);
-  const [contentHeight, setContentHeight] = useState(A4_HEIGHT_PX);
-  const [sealTop, setSealTop] = useState<number | null>(null);
+  const [measure, setMeasure] = useState<Measure | null>(null);
   const [frame, setFrame] = useState<FrameState | null>(null);
+  const [typed, setTyped] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const [letterheadFailed, setLetterheadFailed] = useState(false);
   const [letterheadTry, setLetterheadTry] = useState(0);
   const zoom = usePreviewZoom();
@@ -109,51 +156,125 @@ export function PagePreview({
   const scale = zoom === "fit" ? fit : zoom / 100;
   const percent = Math.round(scale * 100);
   const zoomBy = (direction: "in" | "out") => savePreviewZoom(nextZoom(zoom, fit * 100, direction));
+  const font = fontKey ?? "";
 
-  const source = html === undefined ? null : `${fontKey ?? ""}\n${html}`;
-  if (html === undefined && frame !== null) setFrame(null);
-  if (html !== undefined && source !== null && frame?.source !== source) {
-    setFrame({
-      source,
-      html: previewDocument(html, values, fontKey),
-      version: (frame?.version ?? 0) + 1,
-    });
+  if (source === undefined && frame !== null) setFrame(null);
+  if (source !== undefined && (frame?.font !== font || frame.source !== source)) {
+    if (frame !== null && frame.font === font && source === typed) {
+      setFrame({ ...frame, source });
+    } else {
+      setFrame({
+        font,
+        source,
+        html: previewDocument(source, values, fontKey),
+        version: (frame?.version ?? 0) + 1,
+      });
+    }
   }
+
+  const addTextAt = (x: number, y: number) => {
+    const item = newTextBox(crypto.randomUUID(), x, y);
+    onCanvas((latest) => ({ ...latest, items: [...latest.items, item] }));
+    setSelectedId(item.id);
+    setFocusId(item.id);
+  };
+
+  const handlers: EditingHandlers = {
+    onValues,
+    onHtml: (html) => {
+      setTyped(html);
+      onHtml(html);
+    },
+    onEmptyClick: (x, y) => addTextAt(x / PX_PER_MM, y / PX_PER_MM),
+    onPointerDown: () => setSelectedId(null),
+  };
+
+  useEffect(() => {
+    latest.current = { source: frame?.source ?? "", handlers };
+  });
 
   useEffect(() => {
     const box = boxRef.current;
     if (!box) return;
-    const observer = new ResizeObserver(([entry]) => {
+    const resize = new ResizeObserver(([entry]) => {
       if (entry) setBoxWidth(entry.contentRect.width);
     });
-    observer.observe(box);
-    return () => observer.disconnect();
+    resize.observe(box);
+    return () => {
+      resize.disconnect();
+      observer.current?.disconnect();
+    };
   }, []);
 
-  const refresh = () => {
+  useEffect(() => {
+    const page = frameRef.current?.contentDocument;
+    if (page?.body) patchFields(page, values);
+  });
+
+  const measurePage = () => {
+    const page = frameRef.current?.contentDocument;
+    if (!page?.body) return;
+    setMeasure({
+      height: page.documentElement.offsetHeight,
+      sealTop: Math.round(textBottomOf(page) + sealGapOf(page, SEAL_GAP_LINES)),
+    });
+  };
+
+  const onFrameLoad = () => {
     const page = frameRef.current?.contentDocument;
     if (!page?.body) return;
     patchFields(page, values);
-    const top = Math.round(textBottomOf(page) + SEAL_GAP_LINES * lineHeightOf(page));
-    const sealBottom = sealUrl ? top + SEAL_WIDTH_PX : 0;
-    setSealTop(top);
-    setContentHeight(Math.max(A4_HEIGHT_PX, page.documentElement.scrollHeight, sealBottom));
+    attachEditing(
+      page,
+      () => latest.current?.source ?? "",
+      () => latest.current?.handlers ?? handlers,
+    );
+    observer.current?.disconnect();
+    observer.current = new ResizeObserver(measurePage);
+    observer.current.observe(page.body);
+    measurePage();
+    void page.fonts.ready.then(measurePage);
   };
 
-  useEffect(refresh);
-
-  const onFrameLoad = () => {
-    refresh();
-    void frameRef.current?.contentDocument?.fonts.ready.then(refresh);
+  const visibleTopMm = () => {
+    const top = Math.max(0, (boxRef.current?.scrollTop ?? 0) - SHEET_PADDING_PX);
+    return top / scale / PX_PER_MM + NEW_ITEM_OFFSET_MM;
   };
 
+  const addImage = async (file: File) => {
+    setUploading(true);
+    try {
+      const image = await uploadTenderImage(tenderId, file);
+      const item = newImage(crypto.randomUUID(), image.id, NEW_ITEM_OFFSET_MM, visibleTopMm());
+      onCanvas((latest) => ({ ...latest, items: [...latest.items, item] }));
+      setSelectedId(item.id);
+    } catch (error) {
+      toast.error(`Image can't upload: ${uploadReason(error)}.`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const sealTop = sealUrl ? (measure?.sealTop ?? null) : null;
+  const sealBottom =
+    sealUrl && canvas.seal.shown
+      ? canvas.seal.y !== null
+        ? (canvas.seal.y + canvas.seal.width) * PX_PER_MM
+        : (sealTop ?? 0) + canvas.seal.width * PX_PER_MM
+      : 0;
+  const itemsBottom = Math.max(
+    0,
+    ...canvas.items.map((item) => (item.y + item.height) * PX_PER_MM),
+  );
+  const contentHeight = Math.max(A4_HEIGHT_PX, measure?.height ?? 0, sealBottom, itemsBottom);
   const pageCount = Math.ceil(contentHeight / A4_HEIGHT_PX);
   const sheetHeight = pageCount * A4_HEIGHT_PX;
   const ready = frame !== null || !hasTemplate;
+  const canAddSeal = sealUrl !== null && !canvas.seal.shown;
 
   return (
     <section aria-label="Live preview" className="flex min-h-0 flex-1 flex-col">
-      <header className="flex shrink-0 items-center gap-2 border-b px-4 py-2">
+      <header className="flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-2">
         <div className="flex min-w-0 flex-1 flex-col">
           <h2 className="text-sm font-semibold">Live preview</h2>
           {frame !== null && (
@@ -161,6 +282,71 @@ export function PagePreview({
               {pageCount} {pageCount === 1 ? "page" : "pages"}
             </span>
           )}
+        </div>
+        <div
+          className="flex flex-wrap items-center gap-1"
+          role="group"
+          aria-label="Add to the page"
+        >
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!ready}
+            onClick={() => addTextAt(NEW_ITEM_OFFSET_MM, visibleTopMm())}
+          >
+            <Type aria-hidden />
+            Add text
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!ready || uploading}
+            onClick={() => fileRef.current?.click()}
+          >
+            {uploading ? (
+              <Loader2 className="animate-spin" aria-hidden />
+            ) : (
+              <ImagePlus aria-hidden />
+            )}
+            {uploading ? "Uploading…" : "Add image"}
+          </Button>
+          {canAddSeal && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                onCanvas((latest) => ({
+                  ...latest,
+                  seal: { ...latest.seal, shown: true, x: null, y: null },
+                }))
+              }
+            >
+              <Stamp aria-hidden />
+              Add seal
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!edited}
+            onClick={() => setConfirmReset(true)}
+          >
+            <RotateCcw aria-hidden />
+            Reset template text
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept={IMAGE_ACCEPT}
+            className="hidden"
+            aria-hidden
+            tabIndex={-1}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (file) void addImage(file);
+            }}
+          />
         </div>
         <div className="flex items-center gap-1" role="group" aria-label="Zoom">
           <IconButton
@@ -211,7 +397,13 @@ export function PagePreview({
         </p>
       )}
 
-      <div ref={boxRef} className="min-h-0 flex-1 overflow-auto bg-muted">
+      <div
+        ref={boxRef}
+        className="min-h-0 flex-1 overflow-auto bg-muted"
+        onPointerDown={(event) => {
+          if (event.target === event.currentTarget) setSelectedId(null);
+        }}
+      >
         {boxWidth > 0 && (
           <div className="w-max min-w-full px-4 py-4">
             <div
@@ -236,7 +428,7 @@ export function PagePreview({
                   <div
                     key={index}
                     aria-hidden
-                    className="absolute inset-x-0 border-t-2 border-dashed border-muted-foreground/40"
+                    className="pointer-events-none absolute inset-x-0 border-t-2 border-dashed border-muted-foreground/40"
                     style={{ top: (index + 1) * A4_HEIGHT_PX }}
                   />
                 ))}
@@ -244,7 +436,7 @@ export function PagePreview({
                   <iframe
                     key={frame.version}
                     ref={frameRef}
-                    title="Quotation preview"
+                    title="Quotation page"
                     sandbox="allow-same-origin"
                     srcDoc={frame.html}
                     onLoad={onFrameLoad}
@@ -252,20 +444,19 @@ export function PagePreview({
                     style={{ width: A4_WIDTH_PX, height: sheetHeight }}
                   />
                 )}
-                {sealUrl && frame !== null && sealTop !== null && (
-                  <Image
-                    src={sealUrl}
-                    alt="Seal"
-                    unoptimized
-                    width={SEAL_WIDTH_PX}
-                    height={SEAL_WIDTH_PX}
-                    className="pointer-events-none absolute"
-                    style={{
-                      right: SEAL_MARGIN_MM * PX_PER_MM,
-                      top: sealTop,
-                      width: SEAL_WIDTH_PX,
-                      height: "auto",
-                    }}
+                {ready && (
+                  <CanvasLayer
+                    tenderId={tenderId}
+                    canvas={canvas}
+                    scale={scale}
+                    fontFamily={fontFamily}
+                    sealUrl={sealUrl}
+                    autoSealTop={sealTop}
+                    selectedId={selectedId}
+                    focusId={focusId}
+                    onSelect={setSelectedId}
+                    onFocused={() => setFocusId(null)}
+                    onChange={onCanvas}
                   />
                 )}
                 {!hasTemplate && (
@@ -304,6 +495,29 @@ export function PagePreview({
           </div>
         )}
       </div>
+
+      <AlertDialog open={confirmReset} onOpenChange={setConfirmReset}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset template text?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your edits to the template text will be undone. Values, added text, images and the
+              seal stay.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setTyped(null);
+                onHtml(null);
+              }}
+            >
+              Reset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

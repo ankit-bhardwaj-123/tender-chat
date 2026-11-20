@@ -8,15 +8,20 @@ import {
   type TenderChanges,
   updateTender as updateTenderRow,
 } from "@/repositories/tender.repository";
+import { findImageKeysOfTender } from "@/repositories/tender-image.repository";
+import { storage } from "@/server/adapters/file-storage";
 import { invalid, notFound } from "@/server/errors";
+import { reportError } from "@/server/report-error";
 import { toTender } from "@/shared/dto";
-import type { Tender } from "@/types";
+import type { Tender, TenderCanvas } from "@/types";
 
 export interface TenderUpdate {
   name?: string;
   companyId?: string | null;
   templateId?: string | null;
   values?: Record<string, string>;
+  customHtml?: string | null;
+  canvas?: TenderCanvas;
 }
 
 const NAME_MAX_LENGTH = 200;
@@ -64,7 +69,11 @@ function cleanValues(values: Record<string, string>): Record<string, string> {
   return clean;
 }
 
-async function checkedChanges(userId: string, update: TenderUpdate): Promise<TenderChanges> {
+async function checkedChanges(
+  userId: string,
+  update: TenderUpdate,
+  currentTemplateId: string | null,
+): Promise<TenderChanges> {
   const changes: TenderChanges = {};
   if (update.name !== undefined) {
     const name = cleanName(update.name);
@@ -86,6 +95,11 @@ async function checkedChanges(userId: string, update: TenderUpdate): Promise<Ten
     changes.templateId = update.templateId;
   }
   if (update.values !== undefined) changes.values = cleanValues(update.values);
+  if (update.customHtml !== undefined) changes.customHtml = update.customHtml;
+  if (update.canvas !== undefined) changes.canvas = update.canvas;
+  if (changes.templateId !== undefined && changes.templateId !== currentTemplateId) {
+    changes.customHtml = null;
+  }
   return changes;
 }
 
@@ -94,10 +108,12 @@ export async function updateTender(
   tenderId: string,
   update: TenderUpdate,
 ): Promise<Tender> {
-  if (!(await findTenderById(userId, tenderId))) {
+  const current = await findTenderById(userId, tenderId);
+  if (!current) {
     throw notFound(NOT_FOUND);
   }
-  const row = await updateTenderRow(userId, tenderId, await checkedChanges(userId, update));
+  const changes = await checkedChanges(userId, update, current.templateId);
+  const row = await updateTenderRow(userId, tenderId, changes);
   if (!row) {
     throw notFound(NOT_FOUND);
   }
@@ -105,8 +121,13 @@ export async function updateTender(
 }
 
 export async function deleteTender(userId: string, tenderId: string): Promise<void> {
+  const owned = await findTenderById(userId, tenderId);
+  const imageKeys = owned ? await findImageKeysOfTender(tenderId) : [];
   const removed = await removeTender(userId, tenderId);
   if (!removed) {
     throw notFound(NOT_FOUND);
   }
+  await Promise.all(
+    imageKeys.map((key) => storage.delete(key).catch((error: unknown) => reportError(error))),
+  );
 }

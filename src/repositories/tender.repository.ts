@@ -1,4 +1,5 @@
-import { and, desc, eq, ilike } from "drizzle-orm";
+import type { TenderCanvas } from "@/types";
+import { and, desc, eq, ilike, sql } from "drizzle-orm";
 import { db as defaultDb, type Executor } from "@/server/adapters/postgres";
 import { ownedBy } from "@/server/ownership";
 import { tender } from "@/server/schema";
@@ -16,6 +17,8 @@ export interface TenderChanges {
   companyId?: string | null;
   templateId?: string | null;
   values?: Record<string, string>;
+  customHtml?: string | null;
+  canvas?: TenderCanvas;
 }
 
 export async function findAllTendersByUser(
@@ -70,9 +73,11 @@ export async function updateTender(
   if (changes.companyId !== undefined) set.companyId = changes.companyId;
   if (changes.templateId !== undefined) set.templateId = changes.templateId;
   if (changes.values !== undefined) set.values = changes.values;
+  if (changes.customHtml !== undefined) set.customHtml = changes.customHtml;
+  if (changes.canvas !== undefined) set.canvas = changes.canvas;
   const [row] = await db
     .update(tender)
-    .set({ ...set, updatedAt: new Date() })
+    .set({ ...set, updatedAt: sql`now()` })
     .where(and(eq(tender.id, tenderId), ownedBy(userId)))
     .returning();
   return row ?? null;

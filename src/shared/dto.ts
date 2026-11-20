@@ -5,8 +5,10 @@ import type {
   Template,
   TemplateLanguage,
   Tender,
+  TenderImage,
   TenderType,
 } from "@/types";
+import { readCanvas } from "@/shared/canvas";
 import { isFontKey } from "@/shared/fonts";
 
 export interface TenderDbRow {
@@ -16,6 +18,8 @@ export interface TenderDbRow {
   companyId: string | null;
   templateId: string | null;
   values: Record<string, string> | null;
+  customHtml: string | null;
+  canvas: unknown;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,6 +32,8 @@ export function toTender(row: TenderDbRow): Tender {
     companyId: row.companyId,
     templateId: row.templateId,
     values: row.values ?? {},
+    customHtml: row.customHtml,
+    canvas: readCanvas(row.canvas),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -95,4 +101,13 @@ export function toTemplate(row: TemplateDbRow): Template {
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+export interface TenderImageDbRow {
+  id: string;
+  fileName: string;
+}
+
+export function toTenderImage(row: TenderImageDbRow): TenderImage {
+  return { id: row.id, fileName: row.fileName };
 }

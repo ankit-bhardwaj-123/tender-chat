@@ -8,6 +8,7 @@ const CONTENT_TYPES: Record<string, string> = {
   pdf: "application/pdf",
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
+  png: "image/png",
   html: "text/html; charset=utf-8",
   htm: "text/html; charset=utf-8",
 };

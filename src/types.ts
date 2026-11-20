@@ -18,8 +18,40 @@ export interface Tender {
   companyId: string | null;
   templateId: string | null;
   values: Record<string, string>;
+  customHtml: string | null;
+  canvas: TenderCanvas;
   createdAt: string;
   updatedAt: string;
+}
+
+export type CanvasItemKind = "text" | "image";
+
+export interface CanvasItem {
+  id: string;
+  kind: CanvasItemKind;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text: string;
+  imageId: string | null;
+}
+
+export interface CanvasSeal {
+  shown: boolean;
+  x: number | null;
+  y: number | null;
+  width: number;
+}
+
+export interface TenderCanvas {
+  items: CanvasItem[];
+  seal: CanvasSeal;
+}
+
+export interface TenderImage {
+  id: string;
+  fileName: string;
 }
 
 export type CompanyFileKind = "letterhead" | "seal";
@@ -49,7 +81,7 @@ export interface UploadRef {
   fileName: string;
 }
 
-export type UploadKind = "companyFile" | "template";
+export type UploadKind = "companyFile" | "template" | "tenderImage";
 
 export type TemplateLanguage = "hi" | "en";
 

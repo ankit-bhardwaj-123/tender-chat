@@ -36,6 +36,13 @@
       "when": 1795074881702,
       "tag": "0004_tender-editor",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795153888193,
+      "tag": "0005_tender-canvas",
+      "breakpoints": true
     }
   ]
 }

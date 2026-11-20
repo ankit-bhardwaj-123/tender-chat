@@ -27,6 +27,7 @@ const MB = 1024 * 1024;
 export const UPLOAD_LIMITS: Record<UploadKind, UploadLimit> = {
   companyFile: { maxBytes: 10 * MB, extensions: ["pdf", "jpg", "jpeg"] },
   template: { maxBytes: 2 * MB, extensions: ["html", "htm"] },
+  tenderImage: { maxBytes: 5 * MB, extensions: ["jpg", "jpeg", "png"] },
 };
 
 const KEY_PATTERN = /^uploads\/([0-9a-f-]{36})\/[0-9a-f-]{36}\.([a-z0-9]{1,5})$/;

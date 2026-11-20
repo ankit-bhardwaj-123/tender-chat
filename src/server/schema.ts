@@ -1,3 +1,4 @@
+import type { TenderCanvas } from "@/types";
 import { relations, sql } from "drizzle-orm";
 import { bigint, boolean, index, jsonb, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
@@ -61,6 +62,8 @@ export const tender = pgTable("tender", {
   companyId: uuid("company_id").references(() => company.id, { onDelete: "set null" }),
   templateId: uuid("template_id").references(() => template.id, { onDelete: "set null" }),
   values: jsonb("values").$type<Record<string, string>>().notNull().default({}),
+  customHtml: text("custom_html"),
+  canvas: jsonb("canvas").$type<TenderCanvas>().notNull().default({ items: [], seal: { shown: true, x: null, y: null, width: 35 } }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("tender_user_updated_idx").on(table.userId, table.updatedAt)]);
@@ -99,10 +102,21 @@ export const template = pgTable("template", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("template_user_created_idx").on(table.userId, table.createdAt)]);
 
+export const tenderImage = pgTable("tender_image", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tenderId: uuid("tender_id").notNull().references(() => tender.id, { onDelete: "cascade" }),
+  storageKey: text("storage_key").notNull().unique(),
+  fileName: text("file_name").notNull(),
+  contentType: text("content_type").notNull(),
+  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("tender_image_tender_idx").on(table.tenderId)]);
+
 export const userRelations = relations(user, ({ many }) => ({ sessions: many(session), accounts: many(account), tenders: many(tender), companies: many(company), templates: many(template) }));
 export const sessionRelations = relations(session, ({ one }) => ({ user: one(user, { fields: [session.userId], references: [user.id] }) }));
 export const accountRelations = relations(account, ({ one }) => ({ user: one(user, { fields: [account.userId], references: [user.id] }) }));
-export const tenderRelations = relations(tender, ({ one }) => ({ user: one(user, { fields: [tender.userId], references: [user.id] }) }));
+export const tenderRelations = relations(tender, ({ one, many }) => ({ user: one(user, { fields: [tender.userId], references: [user.id] }), images: many(tenderImage) }));
+export const tenderImageRelations = relations(tenderImage, ({ one }) => ({ tender: one(tender, { fields: [tenderImage.tenderId], references: [tender.id] }) }));
 export const companyRelations = relations(company, ({ one, many }) => ({ user: one(user, { fields: [company.userId], references: [user.id] }), files: many(companyFile) }));
 export const companyFileRelations = relations(companyFile, ({ one }) => ({ company: one(company, { fields: [companyFile.companyId], references: [company.id] }) }));
 export const templateRelations = relations(template, ({ one }) => ({ user: one(user, { fields: [template.userId], references: [user.id] }) }));

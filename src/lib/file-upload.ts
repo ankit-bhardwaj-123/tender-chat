@@ -12,6 +12,7 @@ const USES_BLOB = process.env.NEXT_PUBLIC_FILE_STORE === "blob";
 const EXTENSIONS: Record<UploadKind, readonly string[]> = {
   companyFile: ["pdf", "jpg", "jpeg"],
   template: ["html", "htm"],
+  tenderImage: ["jpg", "jpeg", "png"],
 };
 
 let userIdRequest: Promise<string> | null = null;

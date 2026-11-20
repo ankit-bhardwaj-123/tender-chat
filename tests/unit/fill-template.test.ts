@@ -44,7 +44,9 @@ describe("fillTemplate", () => {
   it("puts the plain value, not a span, inside a tag attribute or the head", () => {
     const template = page('<img alt="{{seal}}"><p>{{seal}}</p>', "<title>{{seal}}</title>");
     const html = fillTemplate(template, { seal: 'A"B' }, MARK);
-    expect(html).toContain('<img alt="A&quot;B">');
+    expect(html).toContain(
+      '<img alt="A&quot;B" data-tpl="&lt;img alt=&quot;&#123;&#123;seal&#125;&#125;&quot;&gt;">',
+    );
     expect(html).toContain("<title>A&quot;B</title>");
     expect(html).toContain('<span data-field="seal">A&quot;B</span>');
   });
@@ -65,7 +67,7 @@ describe("fillTemplate", () => {
     expect(html).toContain('<p class="x">ok</p>');
   });
 
-  it("puts the font override first in <head>, and works without a <head>", () => {
+  it("puts the font override last in <head>, and works without a <head>", () => {
     const css = fontOverrideCss('"Mukta", system-ui, sans-serif', "@font-face{}");
     const withHead = fillTemplate(
       page("<p>x</p>", "<style>body{font-family:Arial}</style>"),
@@ -75,9 +77,9 @@ describe("fillTemplate", () => {
         fontCss: css,
       },
     );
-    expect(withHead.indexOf('<style data-font="">')).toBeLessThan(withHead.indexOf("Arial"));
+    expect(withHead.indexOf('<style data-font="">')).toBeGreaterThan(withHead.indexOf("Arial"));
     expect(withHead).toContain(
-      'html,body,body *{font-family:"Mukta", system-ui, sans-serif !important}',
+      ':root,:root body,:root body *{font-family:"Mukta", system-ui, sans-serif !important}',
     );
     const noHead = fillTemplate("<p>{{a}}</p>", { a: "1" }, { mark: true, fontCss: css });
     expect(noHead.startsWith('<style data-font="">')).toBe(true);

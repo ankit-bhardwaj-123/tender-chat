@@ -165,4 +165,71 @@ describe("tender editor API", () => {
     expect((await patch(owner, tender.id, { values: { a: 1 } })).status).toBe(400);
     expect((await patch(owner, tender.id, { name: "   " })).status).toBe(400);
   });
+
+  it("gives a new tender the default canvas and no edited page", async () => {
+    const tender = await createTender(owner);
+    expect(tender.customHtml).toBeNull();
+    expect(tender.canvas).toEqual({
+      items: [],
+      seal: { shown: true, x: null, y: null, width: 35 },
+    });
+  });
+
+  it("saves the edited page and the canvas and reads them back", async () => {
+    const tender = await createTender(owner);
+    const canvas = {
+      items: [
+        {
+          id: "a",
+          kind: "text",
+          x: 20,
+          y: 330,
+          width: 70,
+          height: 10,
+          text: "नमस्ते",
+          imageId: null,
+        },
+      ],
+      seal: { shown: true, x: 140, y: 200, width: 40 },
+    };
+    const body = { customHtml: "<p>{{officer}} edited</p>", canvas };
+    expect((await patch(owner, tender.id, body)).status).toBe(200);
+    const saved = (await (await read(owner, tender.id)).json()) as Tender;
+    expect(saved.customHtml).toBe("<p>{{officer}} edited</p>");
+    expect(saved.canvas).toEqual(canvas);
+  });
+
+  it("clears the edited page but keeps the canvas when the template really changes", async () => {
+    const first = await createTemplate(owner, "First");
+    const second = await createTemplate(owner, "Second");
+    const tender = await createTender(owner);
+    await patch(owner, tender.id, { templateId: first.id });
+    const canvas = {
+      items: [
+        { id: "a", kind: "text", x: 10, y: 10, width: 70, height: 10, text: "x", imageId: null },
+      ],
+      seal: { shown: false, x: null, y: null, width: 35 },
+    };
+    await patch(owner, tender.id, { customHtml: "<p>mine</p>", canvas });
+    const same = (await (await patch(owner, tender.id, { templateId: first.id })).json()) as Tender;
+    expect(same.customHtml).toBe("<p>mine</p>");
+    const changed = (await (
+      await patch(owner, tender.id, { templateId: second.id })
+    ).json()) as Tender;
+    expect(changed.customHtml).toBeNull();
+    expect(changed.canvas).toEqual(canvas);
+  });
+
+  it("keeps the edited page and the canvas when the company changes", async () => {
+    const a = await createCompany(owner, "A Co");
+    const b = await createCompany(owner, "B Co");
+    const tender = await createTender(owner);
+    await patch(owner, tender.id, { companyId: a.id });
+    const canvas = { items: [], seal: { shown: true, x: 100, y: 120, width: 35 } };
+    await patch(owner, tender.id, { customHtml: "<p>kept</p>", canvas });
+    const changed = (await (await patch(owner, tender.id, { companyId: b.id })).json()) as Tender;
+    expect(changed.companyId).toBe(b.id);
+    expect(changed.customHtml).toBe("<p>kept</p>");
+    expect(changed.canvas).toEqual(canvas);
+  });
 });
