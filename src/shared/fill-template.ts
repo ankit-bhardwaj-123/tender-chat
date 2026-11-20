@@ -22,12 +22,14 @@ export const TEMPLATE_TAG = "data-tpl";
 
 const TAG = /<[a-z][^\s/>]*(?:"[^"]*"|'[^']*'|[^'">])*>/gi;
 const HAS_PLACEHOLDER = /\{\{[^{}]*\}\}/;
+const META_REFRESH = /<meta\b[^>]*http-equiv\s*=\s*["']?\s*refresh[^>]*>/gi;
 const EVENT_ATTRIBUTE = /\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi;
 
 export function stripScripts(html: string): string {
   return html
     .replace(/<script\b[\s\S]*?<\/script\s*>/gi, "")
     .replace(/<script\b[^>]*\/?>/gi, "")
+    .replace(META_REFRESH, "")
     .replace(TAG, (tag) => tag.replace(EVENT_ATTRIBUTE, ""));
 }
 

@@ -76,6 +76,7 @@ interface PagePreviewProps {
   onHtml: (html: string | null) => void;
   onCanvas: (change: CanvasUpdate) => void;
   onRetry: () => void;
+  onSealTop: (mm: number | null) => void;
 }
 
 interface FrameState {
@@ -135,6 +136,7 @@ export function PagePreview({
   onHtml,
   onCanvas,
   onRetry,
+  onSealTop,
 }: PagePreviewProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -256,6 +258,10 @@ export function PagePreview({
   };
 
   const sealTop = sealUrl ? (measure?.sealTop ?? null) : null;
+
+  useEffect(() => {
+    onSealTop(sealTop === null ? null : sealTop / PX_PER_MM);
+  }, [onSealTop, sealTop]);
   const sealBottom =
     sealUrl && canvas.seal.shown
       ? canvas.seal.y !== null

@@ -4,8 +4,14 @@ import type { CanvasItem, TenderCanvas } from "@/types";
 import { ImageOff, Move, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { type KeyboardEvent, type PointerEvent, useRef, useState } from "react";
-import { deleteTenderImage, PX_PER_MM, SEAL_MARGIN_MM, tenderImageUrl } from "@/lib/editor";
-import { keepOnSheet, MIN_ITEM_MM, PAGE_WIDTH_MM, TEXT_BOX_FONT_PT } from "@/shared/canvas";
+import { deleteTenderImage, PX_PER_MM, tenderImageUrl } from "@/lib/editor";
+import {
+  keepOnSheet,
+  MIN_ITEM_MM,
+  PAGE_WIDTH_MM,
+  sealLeft,
+  TEXT_BOX_FONT_PT,
+} from "@/shared/canvas";
 
 export const SEAL_ID = "seal";
 
@@ -66,7 +72,7 @@ export function CanvasLayer({
   const sealBox: Box | null =
     sealUrl && canvas.seal.shown && (canvas.seal.y !== null || autoSealTop !== null)
       ? {
-          x: canvas.seal.x ?? PAGE_WIDTH_MM - SEAL_MARGIN_MM - canvas.seal.width,
+          x: sealLeft(canvas.seal),
           y: canvas.seal.y ?? (autoSealTop ?? 0) / PX_PER_MM,
           width: canvas.seal.width,
           height: canvas.seal.width,

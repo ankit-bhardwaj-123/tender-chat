@@ -2,8 +2,7 @@ import type { Template, Tender, TenderCanvas, TenderImage } from "@/types";
 import { type QueryClient, useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { sendWithFiles } from "@/lib/file-upload";
-import { fillTemplate, fontOverrideCss } from "@/shared/fill-template";
-import { fontFaceCss, fontOf, fontStack } from "@/shared/fonts";
+import { pageDocument } from "@/shared/page-document";
 
 export interface TenderChanges {
   name?: string;
@@ -24,7 +23,7 @@ export type SaveStatus = "saved" | "saving" | "failed";
 
 export interface Autosave {
   status: SaveStatus;
-  flush: () => Promise<void>;
+  flush: () => Promise<boolean>;
   retry: () => void;
 }
 
@@ -39,11 +38,11 @@ export const NOT_FOUND = "not_found";
 export const A4_WIDTH_PX = 794;
 export const A4_HEIGHT_PX = 1123;
 export const PX_PER_MM = A4_WIDTH_PX / 210;
-export const SEAL_MARGIN_MM = 25;
 export const ZOOM_STEPS: readonly number[] = [50, 60, 70, 75, 100, 125, 150, 200];
 export const EDITOR_SPLIT_KEY = "tender-chat:editor-split";
 
 const FAILED = "Something went wrong, please try again.";
+export const PDF_FAILED = "PDF can't be made, please try again.";
 const AUTOSAVE_MS = 800;
 const KEEPALIVE_MAX_BYTES = 60000;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -54,9 +53,6 @@ const SIDE_PADDING_PX = 16;
 const MIN_FIT_SCALE = 0.1;
 const zoomListeners = new Set<() => void>();
 const NO_STORAGE: SplitStorage = { getItem: () => null, setItem: () => {} };
-
-const PREVIEW_CSS =
-  "html{width:210mm;min-height:297mm;box-sizing:border-box;background:transparent!important;overflow:hidden}body{background:transparent!important}[data-empty]{background:#eeeeea;color:#565c66;border-radius:2px;padding:0 2px}";
 
 export function tenderKey(tenderId: string): readonly string[] {
   return ["tender", tenderId];
@@ -114,16 +110,13 @@ export function previewDocument(
   values: Record<string, string>,
   fontKey: string | null,
 ): string {
-  const font = fontOf(fontKey);
-  const faces = fontFaceCss((fileName) => `${window.location.origin}/fonts/${fileName}`);
-  const filled = fillTemplate(html, values, {
-    mark: true,
-    fontCss: fontOverrideCss(fontStack(font), faces),
-  });
-  const style = `<style data-preview="">${PREVIEW_CSS}</style>`;
-  return /<\/head\s*>/i.test(filled)
-    ? filled.replace(/<\/head\s*>/i, `${style}</head>`)
-    : style + filled;
+  return pageDocument(
+    html,
+    values,
+    fontKey,
+    (fileName) => `${window.location.origin}/fonts/${fileName}`,
+    "",
+  );
 }
 
 export function keptValues(
@@ -301,6 +294,7 @@ export function useAutosave(
     clearTimeout(timer.current);
     if (pending.current !== null) send(pending.current);
     await queue.current;
+    return pending.current === null;
   };
 
   const status: SaveStatus = empty ? "saved" : failedBody === body ? "failed" : "saving";
@@ -342,4 +336,48 @@ export async function uploadTenderImage(tenderId: string, file: File): Promise<T
 
 export async function deleteTenderImage(tenderId: string, imageId: string): Promise<void> {
   await fetch(tenderImageUrl(tenderId, imageId), { method: "DELETE" }).catch(() => {});
+}
+
+function pdfFileName(res: Response): string {
+  const header = res.headers.get("Content-Disposition") ?? "";
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header)?.[1];
+  if (!encoded) return "Quotation.pdf";
+  try {
+    return decodeURIComponent(encoded);
+  } catch {
+    return "Quotation.pdf";
+  }
+}
+
+export async function requestTenderPdf(
+  tenderId: string,
+  sealTop: number | null,
+): Promise<{ fileName: string; blob: Blob }> {
+  const res = await fetch(`/api/tenders/${tenderId}/pdf`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sealTop }),
+  }).catch(() => {
+    throw new Error(PDF_FAILED);
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+    throw new Error(res.status >= 500 ? PDF_FAILED : (body?.error?.message ?? PDF_FAILED));
+  }
+  const blob = await res.blob().catch(() => {
+    throw new Error(PDF_FAILED);
+  });
+  return { fileName: pdfFileName(res), blob };
+}
+
+export async function downloadTenderPdf(tenderId: string, sealTop: number | null): Promise<void> {
+  const { fileName, blob } = await requestTenderPdf(tenderId, sealTop);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 }

@@ -36,7 +36,7 @@ const securityHeaders = [
 const printerFiles = [
   "./node_modules/@sparticuz/chromium/bin/**",
   "./node_modules/playwright-core/browsers.json",
-  "./node_modules/@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-{latin,devanagari}-{400,700}-normal.woff2",
+  "./node_modules/@fontsource/*/files/*-{latin,devanagari}-{400,700}-normal.woff2",
 ];
 
 const nextConfig: NextConfig = {

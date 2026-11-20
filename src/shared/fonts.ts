@@ -75,13 +75,16 @@ export function fontFileName(font: Font, subset: string, weight: number): string
   return `${font.key}-${subset}-${weight}-normal.woff2`;
 }
 
-export function fontFaceCss(urlFor: (fileName: string) => string): string {
-  return FONTS.flatMap((font) =>
-    font.weights.flatMap((weight) =>
-      FONT_SUBSETS.map(
-        (subset) =>
-          `@font-face{font-family:"${font.family}";font-style:normal;font-weight:${weight};font-display:swap;src:url("${urlFor(fontFileName(font, subset.name, weight))}") format("woff2");unicode-range:${subset.unicodeRange};}`,
+export function fontFaceCss(urlFor: (fileName: string) => string, only?: Font): string {
+  const fonts = only ? [only] : FONTS;
+  return fonts
+    .flatMap((font) =>
+      font.weights.flatMap((weight) =>
+        FONT_SUBSETS.map(
+          (subset) =>
+            `@font-face{font-family:"${font.family}";font-style:normal;font-weight:${weight};font-display:swap;src:url("${urlFor(fontFileName(font, subset.name, weight))}") format("woff2");unicode-range:${subset.unicodeRange};}`,
+        ),
       ),
-    ),
-  ).join("\n");
+    )
+    .join("\n");
 }

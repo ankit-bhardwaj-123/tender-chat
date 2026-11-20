@@ -20,8 +20,8 @@ A contractor makes a **quotation** (a price letter sent for a government tender)
    The first option of each is picked automatically.
 
 4. The left side is a **form** with one box per **placeholder** (a `{{name}}` blank in the template). The right side is a **live preview** of the A4 page that updates as they type.
-5. In the preview they can zoom, add text and images, and edit or remove anything: template text, values, the seal, or the letterhead (turn it off or cover parts of it).
-6. They click **Download PDF**.
+5. In the preview they can zoom, add text and images, and edit or remove anything except the letterhead: template text, values, the seal, added text and images. The letterhead is required and always under page 1 (decided 2026-11-20).
+6. They click **Generate PDF** and get `<tender name>.pdf` (see the `pdf-download` skill).
 
 ## Words we use
 
@@ -31,7 +31,7 @@ A contractor makes a **quotation** (a price letter sent for a government tender)
 | Company      | A contractor's firm: name, letterhead (PDF), seal (JPG).                                                                                           |
 | Template     | An HTML letter with `{{placeholders}}` that a user uploads with a name and language. Each user has their own; placeholders are read from the HTML. |
 | Placeholder  | A blank like `{{officer_name}}` that the form fills.                                                                                               |
-| Canvas block | Something placed on top of the page: text, image, the seal, or a cover box. Positions are in mm.                                                   |
+| Canvas block | Something placed on top of the page: text, image or the seal. Positions are in mm.                                                                 |
 | Custom HTML  | The tender's own edited copy of the template text. The original template never changes.                                                            |
 
 ## Status (update this after every feature)
@@ -39,16 +39,16 @@ A contractor makes a **quotation** (a price letter sent for a government tender)
 | Round | Feature                                                                                           | Status          |
 | ----- | ------------------------------------------------------------------------------------------------- | --------------- |
 | 0     | Project setup (copied from v2, `src/` layout, Neon, GitHub repo `ankit-bhardwaj-123/tender-chat`) | done 2026-11-18 |
-| 1     | Auth (Google sign-in) + sidebar shell                                                             | next            |
-| 2     | Companies (name, letterhead, seal)                                                                | —               |
-| 3     | Templates page (name, language, HTML)                                                             | —               |
-| 4     | Fonts list (the owner provides them)                                                              | —               |
-| 5     | Editor: top bar, form, live preview, zoom, save                                                   | —               |
-| 6     | Editor: full editing (edit/remove anything, seal, cover box)                                      | —               |
-| 7     | PDF download                                                                                      | —               |
-| Later | Notesheet (Word), signature, English                                                              | —               |
+| 1     | Auth (Google sign-in) + sidebar shell                                                             | done 2026-11-18 |
+| 2     | Companies (name, letterhead, seal)                                                                | done 2026-11-18 |
+| 3     | Templates page (name, language, HTML)                                                             | done 2026-11-18 |
+| 4     | Fonts (10 fonts, company font)                                                                    | done 2026-11-19 |
+| 5     | Editor: top bar, form, live preview, zoom, save                                                   | done 2026-11-19 |
+| 6     | Editor: full editing (edit/remove template text, seal, add text/image)                            | done 2026-11-20 |
+| 7     | PDF download                                                                                      | done 2026-11-20 |
+| Later | Notesheet (Word), signature, English                                                              | next            |
 
-What exists now: config, packages, `src/app/layout.tsx`, a placeholder `src/app/page.tsx`, `src/components/ui/{sonner,tooltip}.tsx` and `src/lib/utils.ts`. There is no database schema, API or auth yet.
+What exists now: rounds 0–7 (specs in `.claude/specs/01–07`, plans in `.claude/plans/`, check reports in `.claude/reports/`). The PDF path is described in the `pdf-download` skill.
 
 ## Folders
 

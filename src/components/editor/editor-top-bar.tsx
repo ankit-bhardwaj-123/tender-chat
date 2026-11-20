@@ -24,8 +24,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { COMPANIES_KEY, saveCompany } from "@/lib/companies";
-import { keptValues, type SaveStatus, saveTender, type TenderDraft } from "@/lib/editor";
+import {
+  downloadTenderPdf,
+  keptValues,
+  type SaveStatus,
+  saveTender,
+  type TenderDraft,
+} from "@/lib/editor";
 import { FONTS, fontOf, fontStack } from "@/shared/fonts";
 
 interface EditorTopBarProps {
@@ -37,13 +44,16 @@ interface EditorTopBarProps {
   draft: TenderDraft;
   saveStatus: SaveStatus;
   onRetrySave: () => void;
-  onFlushSave: () => Promise<void>;
+  onFlushSave: () => Promise<boolean>;
   onChanging: (change: EditorChange | null) => void;
+  readSealTop: () => number | null;
 }
 
 export type EditorChange = "company" | "template" | "font";
 
 const FAILED = "Something went wrong, please try again.";
+const NOT_SAVED = "Not saved, so the PDF wasn't made. Please try again.";
+const PICK_FIRST = "Pick a company and a template first.";
 const LINK = "text-sm font-medium text-primary underline-offset-4 hover:underline";
 
 function failed(error: unknown) {
@@ -61,10 +71,12 @@ export function EditorTopBar({
   onRetrySave,
   onFlushSave,
   onChanging,
+  readSealTop,
 }: EditorTopBarProps) {
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState<EditorChange | null>(null);
   const [pendingTemplate, setPendingTemplate] = useState<Template | null>(null);
+  const [making, setMaking] = useState(false);
 
   const run = async (label: EditorChange, action: () => Promise<unknown>) => {
     setBusy(label);
@@ -103,7 +115,23 @@ export function EditorTopBar({
     });
   };
 
+  const generatePdf = async () => {
+    setMaking(true);
+    try {
+      if (!(await onFlushSave())) {
+        toast.error(NOT_SAVED);
+        return;
+      }
+      await downloadTenderPdf(tender.id, draft.canvas.seal.y === null ? readSealTop() : null);
+    } catch (error) {
+      failed(error);
+    } finally {
+      setMaking(false);
+    }
+  };
+
   const font = fontOf(company?.fontKey ?? null);
+  const canMakePdf = company !== null && template !== null;
 
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-2">
@@ -206,10 +234,19 @@ export function EditorTopBar({
             <span className="text-muted-foreground">Saved</span>
           )}
         </span>
-        <span title="Coming soon">
-          <Button disabled>
-            <FileDown aria-hidden />
-            Generate PDF
+        {!canMakePdf && (
+          <span id="pdf-needs" className="text-xs text-muted-foreground">
+            {PICK_FIRST}
+          </span>
+        )}
+        <span>
+          <Button
+            aria-describedby={canMakePdf ? undefined : "pdf-needs"}
+            disabled={!canMakePdf || making || busy !== null}
+            onClick={() => void generatePdf()}
+          >
+            {making ? <Spinner aria-hidden /> : <FileDown aria-hidden />}
+            {making ? "Making PDF…" : "Generate PDF"}
           </Button>
         </span>
       </div>

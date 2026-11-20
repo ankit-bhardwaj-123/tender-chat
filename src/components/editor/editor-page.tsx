@@ -4,7 +4,7 @@ import type { Tender } from "@/types";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useDefaultLayout } from "react-resizable-panels";
 import { Button } from "@/components/ui/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
@@ -61,6 +61,11 @@ export function EditorPage() {
   });
   const [state, setState] = useState<DraftState | null>(null);
   const [changing, setChanging] = useState<EditorChange | null>(null);
+  const sealTopRef = useRef<number | null>(null);
+  const onSealTop = useCallback((mm: number | null) => {
+    sealTopRef.current = mm;
+  }, []);
+  const readSealTop = useCallback(() => sealTopRef.current, []);
 
   const company = companies.data?.find((item) => item.id === tender.data?.companyId) ?? null;
   const template = templates.data?.find((item) => item.id === tender.data?.templateId) ?? null;
@@ -201,6 +206,7 @@ export function EditorPage() {
           : null
       }
       onRetry={() => void html.refetch()}
+      onSealTop={onSealTop}
     />
   );
 
@@ -218,6 +224,7 @@ export function EditorPage() {
         onRetrySave={autosave.retry}
         onFlushSave={autosave.flush}
         onChanging={setChanging}
+        readSealTop={readSealTop}
       />
       <div className="relative flex min-h-0 flex-1 flex-col" aria-busy={updating}>
         {isDesktop ? (
