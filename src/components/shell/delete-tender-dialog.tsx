@@ -17,17 +17,23 @@ import {
 
 interface DeleteTenderDialogProps {
   tender: Tender;
+  subfolderIds: string[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   returnFocusTo: HTMLElement;
 }
 
-function deleteBody(name: string): string {
-  return `“${name}” will be permanently deleted. This can't be undone.`;
+function deleteBody(name: string, subfolders: number): string {
+  const also =
+    subfolders === 0
+      ? ""
+      : ` This also deletes ${subfolders} ${subfolders === 1 ? "subfolder" : "subfolders"}.`;
+  return `“${name}” will be permanently deleted.${also} This can't be undone.`;
 }
 
 export function DeleteTenderDialog({
   tender,
+  subfolderIds,
   open,
   onOpenChange,
   returnFocusTo,
@@ -35,6 +41,7 @@ export function DeleteTenderDialog({
   const router = useRouter();
   const pathname = usePathname();
   const queryClient = useQueryClient();
+  const gone = new Set([tender.id, ...subfolderIds]);
   const remove = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/tenders/${tender.id}`, { method: "DELETE" });
@@ -44,7 +51,7 @@ export function DeleteTenderDialog({
       await queryClient.cancelQueries({ queryKey: ["tenders"] });
       const lists = queryClient.getQueriesData<Tender[]>({ queryKey: ["tenders"] });
       queryClient.setQueriesData<Tender[]>({ queryKey: ["tenders"] }, (list) =>
-        list?.filter((t) => t.id !== tender.id),
+        list?.filter((t) => !gone.has(t.id)),
       );
       return { lists };
     },
@@ -53,13 +60,14 @@ export function DeleteTenderDialog({
       toast.error(error.message);
     },
     onSuccess: () => {
-      queryClient.removeQueries({ queryKey: ["tender", tender.id] });
+      for (const id of gone) queryClient.removeQueries({ queryKey: ["tender", id] });
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["tenders"] }),
   });
 
   const confirm = () => {
-    if (pathname === `/t/${tender.id}` || pathname.startsWith(`/t/${tender.id}/`)) {
+    const openId = pathname.startsWith("/t/") ? pathname.split("/")[2] : undefined;
+    if (openId !== undefined && gone.has(openId)) {
       router.push("/");
     }
     remove.mutate();
@@ -76,7 +84,9 @@ export function DeleteTenderDialog({
       >
         <AlertDialogHeader>
           <AlertDialogTitle>Delete this tender?</AlertDialogTitle>
-          <AlertDialogDescription>{deleteBody(tender.name)}</AlertDialogDescription>
+          <AlertDialogDescription>
+            {deleteBody(tender.name, subfolderIds.length)}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>

@@ -9,7 +9,7 @@ import * as tendersRoute from "@/app/api/tenders/route";
 import * as templatesRoute from "@/app/api/templates/route";
 import { findTenderImage } from "@/repositories/tender-image.repository";
 import { storage } from "@/server/adapters/file-storage";
-import type { Company, Template, Tender, TenderImage } from "@/types";
+import type { Company, Template, CreatedTender, Tender, TenderImage } from "@/types";
 import {
   apiRequest,
   createSignedInUser,
@@ -77,7 +77,7 @@ async function createTemplate(html: string): Promise<Template> {
 async function createTender(name: string, changes: Record<string, unknown>): Promise<Tender> {
   const res = await tendersRoute.POST(apiRequest(owner, "/x", jsonBody("POST", { name })));
   expect(res.status).toBe(201);
-  const tender = (await res.json()) as Tender;
+  const tender = ((await res.json()) as CreatedTender).tender;
   const saved = await tenderRoute.PATCH(
     apiRequest(owner, "/x", jsonBody("PATCH", changes)),
     idParams(tender.id),

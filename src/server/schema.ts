@@ -1,12 +1,13 @@
-import type { TenderCanvas } from "@/types";
+import type { SavedPdfSnapshot, TenderCanvas } from "@/types";
 import { relations, sql } from "drizzle-orm";
-import { bigint, boolean, index, jsonb, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, bigint, boolean, index, jsonb, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const companyStatus = pgEnum("company_status", ["active", "void"]);
 export const companyFileKind = pgEnum("company_file_kind", ["letterhead", "seal"]);
 export const templateStatus = pgEnum("template_status", ["active", "void"]);
 export const templateLanguage = pgEnum("template_language", ["hi", "en"]);
 export const tenderType = pgEnum("tender_type", ["quotation"]);
+export const savedPdfFileKind = pgEnum("saved_pdf_file_kind", ["letterhead", "seal", "template", "image"]);
 
 export const user = pgTable("user", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -57,6 +58,8 @@ export const verification = pgTable("verification", {
 export const tender = pgTable("tender", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  parentId: uuid("parent_id").references((): AnyPgColumn => tender.id, { onDelete: "cascade" }),
+  editingPdfId: uuid("editing_pdf_id").references((): AnyPgColumn => savedPdf.id, { onDelete: "set null" }),
   name: text("name").notNull(),
   type: tenderType("type").notNull().default("quotation"),
   companyId: uuid("company_id").references(() => company.id, { onDelete: "set null" }),
@@ -66,7 +69,10 @@ export const tender = pgTable("tender", {
   canvas: jsonb("canvas").$type<TenderCanvas>().notNull().default({ items: [], seal: { shown: true, x: null, y: null, width: 35 } }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [index("tender_user_updated_idx").on(table.userId, table.updatedAt)]);
+}, (table) => [
+  index("tender_user_updated_idx").on(table.userId, table.updatedAt),
+  index("tender_user_parent_idx").on(table.userId, table.parentId),
+]);
 
 export const company = pgTable("company", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -111,6 +117,30 @@ export const tenderImage = pgTable("tender_image", {
   sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("tender_image_tender_idx").on(table.tenderId)]);
+
+export const savedPdf = pgTable("saved_pdf", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tenderId: uuid("tender_id").notNull().references(() => tender.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  companyName: text("company_name").notNull(),
+  templateName: text("template_name").notNull(),
+  storageKey: text("storage_key").notNull().unique(),
+  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+  snapshot: jsonb("snapshot").$type<SavedPdfSnapshot>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  editedAt: timestamp("edited_at", { withTimezone: true }),
+}, (table) => [index("saved_pdf_tender_created_idx").on(table.tenderId, table.createdAt)]);
+
+export const savedPdfFile = pgTable("saved_pdf_file", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  savedPdfId: uuid("saved_pdf_id").notNull().references(() => savedPdf.id, { onDelete: "cascade" }),
+  kind: savedPdfFileKind("kind").notNull(),
+  imageId: uuid("image_id"),
+  storageKey: text("storage_key").notNull().unique(),
+  fileName: text("file_name").notNull(),
+  contentType: text("content_type").notNull(),
+  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+}, (table) => [index("saved_pdf_file_pdf_idx").on(table.savedPdfId)]);
 
 export const userRelations = relations(user, ({ many }) => ({ sessions: many(session), accounts: many(account), tenders: many(tender), companies: many(company), templates: many(template) }));
 export const sessionRelations = relations(session, ({ one }) => ({ user: one(user, { fields: [session.userId], references: [user.id] }) }));

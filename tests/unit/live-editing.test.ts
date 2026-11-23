@@ -18,6 +18,8 @@ afterEach(() => {
 function savedTender(values: Record<string, string>, canvas: TenderCanvas): Tender {
   return {
     id: "t",
+    parentId: null,
+    editingPdfId: null,
     name: "Road",
     type: "quotation",
     companyId: null,

@@ -50,6 +50,8 @@ Not in this project: tender document upload, PDF/Word reading, OCR, auto-fill, r
 
 Options 2–4 depend on the type. When Notesheet arrives, they switch to notesheet companies, templates and fonts.
 
+From Round 9 the Font dropdown is removed (the font is set only on the company) and a **Saved PDFs** dropdown takes its place.
+
 Font is the last dropdown. It shows the **selected company's font**, not the first font in the list. Picking another font there saves it as that company's font straight away.
 
 ## 4. Key decisions
@@ -164,6 +166,8 @@ Copy the file, then trim it to the scope above. Never edit v2 itself.
 | 5     | **Editor: top bar + form + live preview**       | The four dropdowns with defaults (Font = the company's font, and a change saves to the company); form from the placeholders; live filled preview over the letterhead; zoom; save     |
 | 6     | **Editor: full editing**                        | Edit/remove template text and images in place, seal block, add text/image, reset template text                                                                                       |
 | 7     | **PDF download**                                | Same look as the preview, the company's font embedded, works locally and on Vercel                                                                                                   |
+| 8     | **Subfolders**                                  | A tender can hold subfolders (tick box in New tender, ⋯ → New subfolder, ⋯ → Move to…); each subfolder has its own editor (Spec 08)                                                  |
+| 9     | **Saved PDFs**                                  | Font dropdown removed from the top bar; Save & Generate PDF saves each PDF in the DB and opens it in a new tab; a Saved PDFs dropdown lists them; saved PDFs never change (Spec 09)  |
 | Later | Notesheet (Word), signature, English            | —                                                                                                                                                                                    |
 
 ## 11. How we work (rules carried over from v2)

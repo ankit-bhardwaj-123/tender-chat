@@ -5,6 +5,7 @@ import { sendWithFiles } from "@/lib/file-upload";
 import { pageDocument } from "@/shared/page-document";
 
 export interface TenderChanges {
+  editingPdfId?: null;
   name?: string;
   companyId?: string | null;
   templateId?: string | null;

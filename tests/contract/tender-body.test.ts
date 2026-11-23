@@ -110,6 +110,8 @@ describe("toTender", () => {
     const row = {
       id: "t1",
       userId: "u1",
+      parentId: "p1",
+      editingPdfId: null,
       name: "Road",
       type: "quotation" as const,
       companyId: null,
@@ -122,6 +124,8 @@ describe("toTender", () => {
     };
     expect(toTender(row)).toEqual({
       id: "t1",
+      parentId: "p1",
+      editingPdfId: null,
       name: "Road",
       type: "quotation",
       companyId: null,
@@ -132,5 +136,27 @@ describe("toTender", () => {
       createdAt: "2026-11-18T10:00:00.000Z",
       updatedAt: "2026-11-18T11:00:00.000Z",
     });
+  });
+});
+
+describe("folder fields", () => {
+  const id = "3f2c1d7e-8a4b-4c6d-9e0f-1a2b3c4d5e6f";
+
+  it("takes a parent id and a subfolder name when it creates", () => {
+    expect(CreateTenderBody.parse({ name: "Road", parentId: id, subfolderName: "A" })).toEqual({
+      name: "Road",
+      parentId: id,
+      subfolderName: "A",
+    });
+  });
+
+  it("takes a parent id or null when it moves", () => {
+    expect(UpdateTenderBody.parse({ parentId: id })).toEqual({ parentId: id });
+    expect(UpdateTenderBody.parse({ parentId: null })).toEqual({ parentId: null });
+  });
+
+  it("refuses a parent id that isn't a uuid", () => {
+    expect(CreateTenderBody.safeParse({ parentId: "nope" }).success).toBe(false);
+    expect(UpdateTenderBody.safeParse({ parentId: "nope" }).success).toBe(false);
   });
 });

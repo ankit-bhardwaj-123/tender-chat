@@ -28,3 +28,15 @@ export function useMediaQuery(query: string, serverValue: boolean): boolean {
     () => serverValue,
   );
 }
+
+function subscribeNothing(): () => void {
+  return () => {};
+}
+
+export function useHydrated(): boolean {
+  return useSyncExternalStore(
+    subscribeNothing,
+    () => true,
+    () => false,
+  );
+}

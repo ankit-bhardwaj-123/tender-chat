@@ -1,5 +1,5 @@
 import type { TenderCanvas } from "@/types";
-import { and, desc, eq, ilike, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db as defaultDb, type Executor } from "@/server/adapters/postgres";
 import { ownedBy } from "@/server/ownership";
 import { tender } from "@/server/schema";
@@ -7,12 +7,15 @@ import { tender } from "@/server/schema";
 export type TenderRow = typeof tender.$inferSelect;
 
 export interface NewTender {
+  parentId: string | null;
   name: string;
   companyId: string | null;
   templateId: string | null;
 }
 
 export interface TenderChanges {
+  parentId?: string | null;
+  editingPdfId?: string | null;
   name?: string;
   companyId?: string | null;
   templateId?: string | null;
@@ -23,16 +26,13 @@ export interface TenderChanges {
 
 export async function findAllTendersByUser(
   userId: string,
-  search = "",
   db: Executor = defaultDb,
 ): Promise<TenderRow[]> {
-  const term = search.trim();
-  const pattern = term ? `%${term.replace(/[\%_]/g, "\$&")}%` : null;
-  return db
-    .select()
-    .from(tender)
-    .where(pattern ? and(ownedBy(userId), ilike(tender.name, pattern)) : ownedBy(userId))
-    .orderBy(desc(tender.updatedAt));
+  return db.select().from(tender).where(ownedBy(userId)).orderBy(desc(tender.updatedAt));
+}
+
+export async function lockFoldersOfUser(userId: string, db: Executor = defaultDb): Promise<void> {
+  await db.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`);
 }
 
 export async function findTenderById(
@@ -69,6 +69,8 @@ export async function updateTender(
   db: Executor = defaultDb,
 ): Promise<TenderRow | null> {
   const set: TenderChanges = {};
+  if (changes.parentId !== undefined) set.parentId = changes.parentId;
+  if (changes.editingPdfId !== undefined) set.editingPdfId = changes.editingPdfId;
   if (changes.name !== undefined) set.name = changes.name;
   if (changes.companyId !== undefined) set.companyId = changes.companyId;
   if (changes.templateId !== undefined) set.templateId = changes.templateId;
@@ -93,4 +95,17 @@ export async function removeTender(
     .where(and(eq(tender.id, tenderId), ownedBy(userId)))
     .returning({ id: tender.id });
   return removed.length > 0;
+}
+
+export async function lockTender(
+  userId: string,
+  tenderId: string,
+  db: Executor = defaultDb,
+): Promise<TenderRow | null> {
+  const [row] = await db
+    .select()
+    .from(tender)
+    .where(and(eq(tender.id, tenderId), ownedBy(userId)))
+    .for("update");
+  return row ?? null;
 }

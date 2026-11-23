@@ -8,7 +8,7 @@ import * as tenderRoute from "@/app/api/tenders/[id]/route";
 import * as tendersRoute from "@/app/api/tenders/route";
 import { db } from "@/server/adapters/postgres";
 import { tender as tenderTable } from "@/server/schema";
-import type { Company, Template, Tender } from "@/types";
+import type { Company, Template, CreatedTender, Tender } from "@/types";
 import {
   apiRequest,
   createSignedInUser,
@@ -51,7 +51,7 @@ async function createTemplate(as: TestUser, name: string): Promise<Template> {
 async function createTender(as: TestUser, name = "Road"): Promise<Tender> {
   const res = await tendersRoute.POST(apiRequest(as, "/x", jsonBody("POST", { name })));
   expect(res.status).toBe(201);
-  return (await res.json()) as Tender;
+  return ((await res.json()) as CreatedTender).tender;
 }
 
 function patch(as: TestUser | null, tenderId: string, body: unknown): Promise<Response> {

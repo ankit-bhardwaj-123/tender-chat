@@ -9,7 +9,7 @@ import { storage } from "@/server/adapters/file-storage";
 import { db } from "@/server/adapters/postgres";
 import { tenderImage } from "@/server/schema";
 import { uploadKey } from "@/services/upload.service";
-import type { Template, Tender, TenderImage } from "@/types";
+import type { Template, CreatedTender, Tender, TenderImage } from "@/types";
 import {
   apiRequest,
   createSignedInUser,
@@ -40,7 +40,7 @@ afterAll(async () => {
 async function createTender(as: TestUser): Promise<Tender> {
   const res = await tendersRoute.POST(apiRequest(as, "/x", jsonBody("POST", { name: "Road" })));
   expect(res.status).toBe(201);
-  return (await res.json()) as Tender;
+  return ((await res.json()) as CreatedTender).tender;
 }
 
 async function createTemplate(as: TestUser, name: string): Promise<Template> {

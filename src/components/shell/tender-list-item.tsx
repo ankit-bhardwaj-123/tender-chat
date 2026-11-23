@@ -2,7 +2,14 @@
 
 import type { Tender } from "@/types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import {
+  ChevronRight,
+  FolderInput,
+  FolderPlus,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type KeyboardEvent, useRef, useState } from "react";
@@ -23,12 +30,33 @@ function cleanName(raw: string): string | null {
   return name.length === 0 || name.length > NAME_MAX_LENGTH ? null : name;
 }
 
+type RowAction = "rename" | "delete" | "subfolder" | "move";
+
+const INDENT_PX = 12;
+
 interface TenderListItemProps {
   tender: Tender;
+  openId: string;
+  depth: number;
+  hasChildren: boolean;
+  open: boolean;
+  onToggle: (tender: Tender) => void;
   onDelete: (tender: Tender, trigger: HTMLElement) => void;
+  onNewSubfolder: (tender: Tender) => void;
+  onMove: (tender: Tender) => void;
 }
 
-export function TenderListItem({ tender, onDelete }: TenderListItemProps) {
+export function TenderListItem({
+  tender,
+  openId,
+  depth,
+  hasChildren,
+  open,
+  onToggle,
+  onDelete,
+  onNewSubfolder,
+  onMove,
+}: TenderListItemProps) {
   const pathname = usePathname();
   const { onNavigate } = useShell();
   const queryClient = useQueryClient();
@@ -62,11 +90,12 @@ export function TenderListItem({ tender, onDelete }: TenderListItemProps) {
   const [editing, setEditing] = useState(false);
   const linkRef = useRef<HTMLAnchorElement>(null);
   const finished = useRef(false);
-  const pendingAction = useRef<"rename" | "delete" | null>(null);
+  const pendingAction = useRef<RowAction | null>(null);
   const actionsRef = useRef<HTMLButtonElement>(null);
 
-  const href = `/t/${tender.id}`;
-  const active = pathname === href || pathname.startsWith(`${href}/`);
+  const ownHref = `/t/${tender.id}`;
+  const href = `/t/${openId}`;
+  const active = pathname === ownHref || pathname.startsWith(`${ownHref}/`);
 
   const stopEditing = (refocus: boolean) => {
     setEditing(false);
@@ -96,8 +125,24 @@ export function TenderListItem({ tender, onDelete }: TenderListItemProps) {
     <li>
       <div
         data-active={active || undefined}
+        style={{ paddingLeft: `${depth * INDENT_PX}px` }}
         className="group relative flex items-center rounded-md text-sm text-sidebar-foreground hover:bg-sidebar-accent data-active:bg-sidebar-accent data-active:font-medium"
       >
+        {hasChildren ? (
+          <IconButton
+            label={`${open ? "Close" : "Open"} ${tender.name}`}
+            size="icon-xs"
+            aria-expanded={open}
+            onClick={() => onToggle(tender)}
+            className="ml-0.5 shrink-0"
+          >
+            <ChevronRight
+              className={`transition-transform motion-reduce:transition-none ${open ? "rotate-90" : ""}`}
+            />
+          </IconButton>
+        ) : (
+          depth > 0 && <span className="ml-0.5 size-6 shrink-0" aria-hidden />
+        )}
         {editing ? (
           <input
             aria-label="Tender name"
@@ -149,12 +194,24 @@ export function TenderListItem({ tender, onDelete }: TenderListItemProps) {
                 } else if (action === "delete" && actionsRef.current) {
                   const trigger = actionsRef.current;
                   requestAnimationFrame(() => onDelete(tender, trigger));
+                } else if (action === "subfolder") {
+                  requestAnimationFrame(() => onNewSubfolder(tender));
+                } else if (action === "move") {
+                  requestAnimationFrame(() => onMove(tender));
                 }
               }}
             >
               <DropdownMenuItem onSelect={() => (pendingAction.current = "rename")}>
                 <Pencil aria-hidden />
                 Rename
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => (pendingAction.current = "subfolder")}>
+                <FolderPlus aria-hidden />
+                New subfolder
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => (pendingAction.current = "move")}>
+                <FolderInput aria-hidden />
+                Move to…
               </DropdownMenuItem>
               <DropdownMenuItem
                 variant="destructive"

@@ -1,16 +1,20 @@
 "use client";
 
 import type { Tender } from "@/types";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderOpen, PanelLeftClose, Plus, Search } from "lucide-react";
-import { useCallback, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDebouncedValue } from "@/lib/hooks";
+import { useDebouncedValue, useHydrated } from "@/lib/hooks";
+import { ALL_TENDERS_KEY, fetchTenders } from "@/lib/tenders";
+import { ancestorIds, descendantIds, firstLeafId, treeRows } from "@/shared/folder-tree";
 import { DeleteTenderDialog } from "./delete-tender-dialog";
-import { NewTenderDialog } from "./new-tender-dialog";
+import { MoveTenderDialog } from "./move-tender-dialog";
+import { NewTenderDialog, type ParentFolder } from "./new-tender-dialog";
 import { useShell } from "./shell-context";
 import { TenderListItem } from "./tender-list-item";
 import { UserMenu } from "./user-menu";
@@ -18,27 +22,76 @@ import { UserMenu } from "./user-menu";
 const SEARCH_DEBOUNCE_MS = 250;
 
 export function Sidebar() {
+  const hydrated = useHydrated();
+  if (!hydrated) {
+    return <nav aria-label="Tenders" className="h-full bg-sidebar" />;
+  }
+  return <SidebarContent />;
+}
+
+function SidebarContent() {
   const { isDesktop, toggleSidebar } = useShell();
   const [search, setSearch] = useState("");
   const query = useDebouncedValue(search, SEARCH_DEBOUNCE_MS).trim();
   const tenders = useQuery({
     queryKey: ["tenders", query],
-    queryFn: async () => {
-      const url = query ? `/api/tenders?search=${encodeURIComponent(query)}` : "/api/tenders";
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Couldn't load your tenders.");
-      return (await res.json()) as Tender[];
-    },
+    queryFn: () => fetchTenders(query),
     placeholderData: keepPreviousData,
   });
   const [deleting, setDeleting] = useState<{ tender: Tender; trigger: HTMLElement } | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
+  const [subParent, setSubParent] = useState<ParentFolder | null>(null);
+  const [subOpen, setSubOpen] = useState(false);
+  const [moving, setMoving] = useState<Tender | null>(null);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [closedIds, setClosedIds] = useState<Set<string>>(() => new Set());
+  const pathname = usePathname();
+  const queryClient = useQueryClient();
+  const activeId = pathname.startsWith("/t/") ? (pathname.split("/")[2] ?? null) : null;
 
   const askToDelete = useCallback((tender: Tender, trigger: HTMLElement) => {
     setDeleting({ tender, trigger });
     setDeleteOpen(true);
   }, []);
+
+  const askNewSubfolder = useCallback((tender: Tender) => {
+    setSubParent({ id: tender.id, name: tender.name });
+    setSubOpen(true);
+  }, []);
+
+  const askToMove = useCallback((tender: Tender) => {
+    setMoving(tender);
+    setMoveOpen(true);
+  }, []);
+
+  const toggle = useCallback((tender: Tender) => {
+    setClosedIds((current) => {
+      const next = new Set(current);
+      if (next.has(tender.id)) next.delete(tender.id);
+      else next.add(tender.id);
+      return next;
+    });
+  }, []);
+
+  const rows = useMemo(() => {
+    const list = tenders.data ?? [];
+    const pinned = activeId ? ancestorIds(list, activeId) : new Set<string>();
+    const openIds = new Set(
+      list.filter((t) => query !== "" || pinned.has(t.id) || !closedIds.has(t.id)).map((t) => t.id),
+    );
+    const all = queryClient.getQueryData<Tender[]>(ALL_TENDERS_KEY) ?? list;
+    return treeRows(list, openIds).map((row) => ({
+      ...row,
+      openId: row.hasChildren ? firstLeafId(all, row.item.id) : row.item.id,
+    }));
+  }, [tenders.data, activeId, query, closedIds, queryClient]);
+
+  const deletingSubIds = useMemo(() => {
+    if (!deleting) return [];
+    const all = queryClient.getQueryData<Tender[]>(ALL_TENDERS_KEY) ?? tenders.data ?? [];
+    return [...descendantIds(all, deleting.tender.id)];
+  }, [deleting, tenders.data, queryClient]);
 
   const list = () => {
     if (tenders.isPending) {
@@ -73,8 +126,19 @@ export function Sidebar() {
     }
     return (
       <ul className="flex flex-col gap-0.5 px-1.5 py-2">
-        {tenders.data.map((tender) => (
-          <TenderListItem key={tender.id} tender={tender} onDelete={askToDelete} />
+        {rows.map((row) => (
+          <TenderListItem
+            key={row.item.id}
+            tender={row.item}
+            openId={row.openId}
+            depth={row.depth}
+            hasChildren={row.hasChildren}
+            open={row.open}
+            onToggle={toggle}
+            onDelete={askToDelete}
+            onNewSubfolder={askNewSubfolder}
+            onMove={askToMove}
+          />
         ))}
       </ul>
     );
@@ -100,6 +164,14 @@ export function Sidebar() {
           New tender
         </Button>
         <NewTenderDialog open={newOpen} onOpenChange={setNewOpen} />
+        {subParent && (
+          <NewTenderDialog
+            key={subParent.id}
+            open={subOpen}
+            onOpenChange={setSubOpen}
+            parent={subParent}
+          />
+        )}
         <div className="relative">
           <Search
             className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
@@ -131,9 +203,19 @@ export function Sidebar() {
       {deleting && (
         <DeleteTenderDialog
           tender={deleting.tender}
+          subfolderIds={deletingSubIds}
           returnFocusTo={deleting.trigger}
           open={deleteOpen}
           onOpenChange={setDeleteOpen}
+        />
+      )}
+
+      {moving && (
+        <MoveTenderDialog
+          key={moving.id}
+          tender={moving}
+          open={moveOpen}
+          onOpenChange={setMoveOpen}
         />
       )}
     </nav>

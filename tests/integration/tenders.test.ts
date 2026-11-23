@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as tenderRoute from "@/app/api/tenders/[id]/route";
 import * as tendersRoute from "@/app/api/tenders/route";
-import type { Tender } from "@/types";
+import type { CreatedTender, Tender } from "@/types";
 import {
   apiRequest,
   createSignedInUser,
@@ -26,7 +26,7 @@ async function createTender(name?: string): Promise<Tender> {
     apiRequest(owner, "/api/tenders", jsonBody("POST", { name })),
   );
   expect(res.status).toBe(201);
-  return (await res.json()) as Tender;
+  return ((await res.json()) as CreatedTender).tender;
 }
 
 async function listTenders(search = ""): Promise<Tender[]> {

@@ -7,7 +7,7 @@ import * as templateFileRoute from "@/app/api/templates/[id]/file/route";
 import * as templateRoute from "@/app/api/templates/[id]/route";
 import * as templatesRoute from "@/app/api/templates/route";
 import * as tendersRoute from "@/app/api/tenders/route";
-import type { Company, Template, Tender } from "@/types";
+import type { Company, Template, CreatedTender, Tender } from "@/types";
 import {
   apiRequest,
   createSignedInUser,
@@ -29,7 +29,7 @@ beforeAll(async () => {
   const res = await tendersRoute.POST(
     apiRequest(userA, "/api/tenders", jsonBody("POST", { name: "A's private tender" })),
   );
-  tenderOfA = (await res.json()) as Tender;
+  tenderOfA = ((await res.json()) as CreatedTender).tender;
   const created = await companiesRoute.POST(
     apiRequest(userA, "/api/companies", jsonBody("POST", { name: "A's private company" })),
   );

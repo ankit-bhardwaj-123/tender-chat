@@ -13,6 +13,8 @@ export type TenderType = "quotation";
 
 export interface Tender {
   id: string;
+  parentId: string | null;
+  editingPdfId: string | null;
   name: string;
   type: TenderType;
   companyId: string | null;
@@ -22,6 +24,11 @@ export interface Tender {
   canvas: TenderCanvas;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CreatedTender {
+  tender: Tender;
+  subfolder: Tender | null;
 }
 
 export type CanvasItemKind = "text" | "image";
@@ -47,6 +54,27 @@ export interface CanvasSeal {
 export interface TenderCanvas {
   items: CanvasItem[];
   seal: CanvasSeal;
+}
+
+export interface SavedPdf {
+  id: string;
+  name: string;
+  companyName: string;
+  templateName: string;
+  editable: boolean;
+  fontKey: string | null;
+  hasLetterhead: boolean;
+  hasSeal: boolean;
+  createdAt: string;
+  editedAt: string | null;
+}
+
+export interface SavedPdfSnapshot {
+  companyId: string | null;
+  templateId: string | null;
+  fontKey: string | null;
+  values: Record<string, string>;
+  canvas: TenderCanvas;
 }
 
 export interface TenderImage {

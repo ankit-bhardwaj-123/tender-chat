@@ -2,6 +2,8 @@ import type {
   Company,
   CompanyFile,
   CompanyFileKind,
+  SavedPdf,
+  SavedPdfSnapshot,
   Template,
   TemplateLanguage,
   Tender,
@@ -13,6 +15,8 @@ import { isFontKey } from "@/shared/fonts";
 
 export interface TenderDbRow {
   id: string;
+  parentId: string | null;
+  editingPdfId: string | null;
   name: string;
   type: TenderType;
   companyId: string | null;
@@ -27,6 +31,8 @@ export interface TenderDbRow {
 export function toTender(row: TenderDbRow): Tender {
   return {
     id: row.id,
+    parentId: row.parentId,
+    editingPdfId: row.editingPdfId,
     name: row.name,
     type: row.type,
     companyId: row.companyId,
@@ -110,4 +116,34 @@ export interface TenderImageDbRow {
 
 export function toTenderImage(row: TenderImageDbRow): TenderImage {
   return { id: row.id, fileName: row.fileName };
+}
+
+export interface SavedPdfDbRow {
+  id: string;
+  name: string;
+  companyName: string;
+  templateName: string;
+  snapshot: SavedPdfSnapshot | null;
+  createdAt: Date;
+  editedAt: Date | null;
+}
+
+export interface SavedPdfPartKinds {
+  letterhead: boolean;
+  seal: boolean;
+}
+
+export function toSavedPdf(row: SavedPdfDbRow, parts: SavedPdfPartKinds): SavedPdf {
+  return {
+    id: row.id,
+    name: row.name,
+    companyName: row.companyName,
+    templateName: row.templateName,
+    editable: row.snapshot !== null,
+    fontKey: row.snapshot?.fontKey ?? null,
+    hasLetterhead: parts.letterhead,
+    hasSeal: parts.seal,
+    createdAt: row.createdAt.toISOString(),
+    editedAt: row.editedAt ? row.editedAt.toISOString() : null,
+  };
 }

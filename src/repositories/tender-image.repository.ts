@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db as defaultDb, type Executor } from "@/server/adapters/postgres";
 import { tenderImage } from "@/server/schema";
 
@@ -23,6 +23,14 @@ export async function insertTenderImage(
   return row;
 }
 
+export async function insertTenderImageWithId(
+  id: string,
+  values: NewTenderImage,
+  db: Executor = defaultDb,
+): Promise<void> {
+  await db.insert(tenderImage).values({ id, ...values });
+}
+
 export async function findTenderImage(
   tenderId: string,
   imageId: string,
@@ -43,6 +51,18 @@ export async function findImageKeysOfTender(
     .select({ storageKey: tenderImage.storageKey })
     .from(tenderImage)
     .where(eq(tenderImage.tenderId, tenderId));
+  return rows.map((row) => row.storageKey);
+}
+
+export async function findImageKeysOfTenders(
+  tenderIds: string[],
+  db: Executor = defaultDb,
+): Promise<string[]> {
+  if (tenderIds.length === 0) return [];
+  const rows = await db
+    .select({ storageKey: tenderImage.storageKey })
+    .from(tenderImage)
+    .where(inArray(tenderImage.tenderId, tenderIds));
   return rows.map((row) => row.storageKey);
 }
 

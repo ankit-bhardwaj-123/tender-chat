@@ -10,6 +10,8 @@ function tender(
 ): Tender {
   return {
     id: "t",
+    parentId: null,
+    editingPdfId: null,
     name: "Road",
     type: "quotation",
     companyId: null,

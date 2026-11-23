@@ -23,6 +23,7 @@ import {
   useTender,
 } from "@/lib/editor";
 import { useMediaQuery } from "@/lib/hooks";
+import { partUrl, useSavedPdfs } from "@/lib/saved-pdfs";
 import { useTemplates } from "@/lib/templates";
 import { fontOf, fontStack } from "@/shared/fonts";
 import { findPlaceholders } from "@/shared/placeholders";
@@ -35,7 +36,8 @@ const DESKTOP_QUERY = "(min-width: 768px)";
 const CHANGING: Record<EditorChange, string> = {
   company: "Changing the company…",
   template: "Changing the template…",
-  font: "Changing the font…",
+  editing: "Opening the saved PDF for editing…",
+  done: "Going back to normal editing…",
 };
 
 interface DraftState {
@@ -54,6 +56,7 @@ export function EditorPage() {
   const tender = useTender(tenderId);
   const companies = useCompanies();
   const templates = useTemplates();
+  const savedPdfs = useSavedPdfs(tenderId);
   const isDesktop = useMediaQuery(DESKTOP_QUERY, true);
   const split = useDefaultLayout({
     id: EDITOR_SPLIT_KEY,
@@ -71,7 +74,9 @@ export function EditorPage() {
   const template = templates.data?.find((item) => item.id === tender.data?.templateId) ?? null;
   const html = useTemplateHtml(template);
 
-  const draftKey = tender.data ? `${tender.data.id}:${tender.data.templateId ?? ""}` : null;
+  const draftKey = tender.data
+    ? `${tender.data.id}:${tender.data.templateId ?? ""}:${tender.data.editingPdfId ?? ""}`
+    : null;
   if (tender.data && draftKey !== null && state?.key !== draftKey) {
     setState({ key: draftKey, base: tender.data, draft: draftOf(tender.data) });
   } else if (tender.data && state !== null && state.base.updatedAt !== tender.data.updatedAt) {
@@ -164,13 +169,30 @@ export function EditorPage() {
   const changeValues = (next: Record<string, string>) =>
     update((base) => ({ values: { ...base.values, ...next } }));
 
-  const source = template ? (current.customHtml ?? html.data) : undefined;
-  const placeholders = template
+  const editingPdf = savedPdfs.data?.find((pdf) => pdf.id === tender.data.editingPdfId) ?? null;
+  const editing = tender.data.editingPdfId !== null;
+  const hasPage = template !== null || editing;
+  const source = hasPage ? (current.customHtml ?? html.data) : undefined;
+  const placeholders = hasPage
     ? current.customHtml !== null
       ? findPlaceholders(current.customHtml)
-      : template.placeholders
+      : (template?.placeholders ?? null)
     : null;
-  const fontKey = company?.fontKey ?? null;
+  const fontKey = editing ? (editingPdf?.fontKey ?? null) : (company?.fontKey ?? null);
+  const letterheadUrl = editing
+    ? editingPdf?.hasLetterhead
+      ? partUrl(tender.data.id, editingPdf, "letterhead")
+      : null
+    : company?.files.letterhead
+      ? `${companyFileUrl(company.id, "letterhead")}?v=${encodeURIComponent(company.files.letterhead.uploadedAt)}`
+      : null;
+  const sealUrl = editing
+    ? editingPdf?.hasSeal
+      ? partUrl(tender.data.id, editingPdf, "seal")
+      : null
+    : company?.files.seal
+      ? `${companyFileUrl(company.id, "seal")}?v=${encodeURIComponent(company.files.seal.uploadedAt)}`
+      : null;
 
   const form = (
     <div className="h-full overflow-y-auto">
@@ -184,7 +206,8 @@ export function EditorPage() {
   const preview = (
     <PagePreview
       tenderId={tender.data.id}
-      hasTemplate={template !== null}
+      hasTemplate={hasPage}
+      canReset={!editing}
       source={source}
       edited={current.customHtml !== null}
       htmlError={html.isError}
@@ -195,16 +218,8 @@ export function EditorPage() {
       onValues={changeValues}
       onHtml={(customHtml) => update(() => ({ customHtml }))}
       onCanvas={(change) => update((base) => ({ canvas: change(base.canvas) }))}
-      letterheadUrl={
-        company?.files.letterhead
-          ? `${companyFileUrl(company.id, "letterhead")}?v=${encodeURIComponent(company.files.letterhead.uploadedAt)}`
-          : null
-      }
-      sealUrl={
-        company?.files.seal
-          ? `${companyFileUrl(company.id, "seal")}?v=${encodeURIComponent(company.files.seal.uploadedAt)}`
-          : null
-      }
+      letterheadUrl={letterheadUrl}
+      sealUrl={sealUrl}
       onRetry={() => void html.refetch()}
       onSealTop={onSealTop}
     />
@@ -225,6 +240,8 @@ export function EditorPage() {
         onFlushSave={autosave.flush}
         onChanging={setChanging}
         readSealTop={readSealTop}
+        savedPdfs={savedPdfs.data}
+        editingPdf={editingPdf}
       />
       <div className="relative flex min-h-0 flex-1 flex-col" aria-busy={updating}>
         {isDesktop ? (

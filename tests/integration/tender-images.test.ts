@@ -5,7 +5,7 @@ import * as imageRoute from "@/app/api/tenders/[id]/images/[imageId]/route";
 import * as imagesRoute from "@/app/api/tenders/[id]/images/route";
 import * as tenderRoute from "@/app/api/tenders/[id]/route";
 import * as tendersRoute from "@/app/api/tenders/route";
-import type { Tender, TenderImage } from "@/types";
+import type { CreatedTender, Tender, TenderImage } from "@/types";
 import {
   apiRequest,
   createSignedInUser,
@@ -35,7 +35,7 @@ afterAll(async () => {
 async function createTender(as: TestUser): Promise<Tender> {
   const res = await tendersRoute.POST(apiRequest(as, "/x", jsonBody("POST", { name: "Road" })));
   expect(res.status).toBe(201);
-  return (await res.json()) as Tender;
+  return ((await res.json()) as CreatedTender).tender;
 }
 
 function upload(

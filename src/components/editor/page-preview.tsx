@@ -63,6 +63,7 @@ const IMAGE_ACCEPT = ".jpg,.jpeg,.png,image/jpeg,image/png";
 interface PagePreviewProps {
   tenderId: string;
   hasTemplate: boolean;
+  canReset: boolean;
   source: string | undefined;
   edited: boolean;
   htmlError: boolean;
@@ -123,6 +124,7 @@ function patchFields(page: Document, values: Record<string, string>) {
 export function PagePreview({
   tenderId,
   hasTemplate,
+  canReset,
   source,
   edited,
   htmlError,
@@ -331,15 +333,17 @@ export function PagePreview({
               Add seal
             </Button>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!edited}
-            onClick={() => setConfirmReset(true)}
-          >
-            <RotateCcw aria-hidden />
-            Reset template text
-          </Button>
+          {canReset && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!edited}
+              onClick={() => setConfirmReset(true)}
+            >
+              <RotateCcw aria-hidden />
+              Reset template text
+            </Button>
+          )}
           <input
             ref={fileRef}
             type="file"

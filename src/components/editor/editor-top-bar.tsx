@@ -1,8 +1,8 @@
 "use client";
 
-import type { Company, Template, Tender } from "@/types";
+import type { Company, SavedPdf, Template, Tender } from "@/types";
 import { useQueryClient } from "@tanstack/react-query";
-import { CircleAlert, FileDown, Loader2 } from "lucide-react";
+import { CircleAlert, FileDown, PencilLine, Save } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -25,7 +25,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { COMPANIES_KEY, saveCompany } from "@/lib/companies";
 import {
   downloadTenderPdf,
   keptValues,
@@ -33,7 +32,10 @@ import {
   saveTender,
   type TenderDraft,
 } from "@/lib/editor";
-import { FONTS, fontOf, fontStack } from "@/shared/fonts";
+import { editPdf, replacePdf, savePdf } from "@/lib/saved-pdfs";
+import { nextPdfName } from "@/shared/pdf-name";
+import { type SaveChoice, SavePdfDialog } from "./save-pdf-dialog";
+import { SavedPdfsMenu } from "./saved-pdfs-menu";
 
 interface EditorTopBarProps {
   tender: Tender;
@@ -47,9 +49,11 @@ interface EditorTopBarProps {
   onFlushSave: () => Promise<boolean>;
   onChanging: (change: EditorChange | null) => void;
   readSealTop: () => number | null;
+  savedPdfs: readonly SavedPdf[] | undefined;
+  editingPdf: SavedPdf | null;
 }
 
-export type EditorChange = "company" | "template" | "font";
+export type EditorChange = "company" | "template" | "editing" | "done";
 
 const FAILED = "Something went wrong, please try again.";
 const NOT_SAVED = "Not saved, so the PDF wasn't made. Please try again.";
@@ -72,11 +76,17 @@ export function EditorTopBar({
   onFlushSave,
   onChanging,
   readSealTop,
+  savedPdfs,
+  editingPdf,
 }: EditorTopBarProps) {
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState<EditorChange | null>(null);
   const [pendingTemplate, setPendingTemplate] = useState<Template | null>(null);
   const [making, setMaking] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogKey, setDialogKey] = useState(0);
+  const editing = tender.editingPdfId !== null;
 
   const run = async (label: EditorChange, action: () => Promise<unknown>) => {
     setBusy(label);
@@ -104,15 +114,41 @@ export function EditorTopBar({
       }),
     );
 
-  const changeFont = (fontKey: string) => {
-    if (!company) return;
-    void run("font", async () => {
-      const saved = await saveCompany(company.id, { name: company.name, fontKey });
-      queryClient.setQueryData<Company[]>(COMPANIES_KEY, (list) =>
-        list?.map((item) => (item.id === saved.id ? saved : item)),
-      );
-      void queryClient.invalidateQueries({ queryKey: COMPANIES_KEY });
+  const editPdfNow = (pdf: SavedPdf) =>
+    void run("editing", async () => {
+      await editPdf(queryClient, tender.id, pdf.id);
+      toast.success(`Editing “${pdf.name}”.`);
     });
+
+  const stopEditing = () =>
+    void run("done", () => saveTender(queryClient, tender.id, { editingPdfId: null }));
+
+  const openSaveDialog = () => {
+    setDialogKey((key) => key + 1);
+    setDialogOpen(true);
+  };
+
+  const saveCurrentPdf = async (choice: SaveChoice, name: string) => {
+    setSaving(true);
+    try {
+      if (!(await onFlushSave())) {
+        toast.error(NOT_SAVED);
+        return;
+      }
+      const sealTop = draft.canvas.seal.y === null ? readSealTop() : null;
+      if (choice === "replace" && editingPdf) {
+        const saved = await replacePdf(queryClient, tender.id, editingPdf.id, sealTop, name);
+        toast.success(`Updated “${saved.name}”.`);
+      } else {
+        const saved = await savePdf(queryClient, tender.id, sealTop, name);
+        toast.success(`Saved as “${saved.name}”.`);
+      }
+      setDialogOpen(false);
+    } catch (error) {
+      failed(error);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const generatePdf = async () => {
@@ -130,8 +166,12 @@ export function EditorTopBar({
     }
   };
 
-  const font = fontOf(company?.fontKey ?? null);
-  const canMakePdf = company !== null && template !== null;
+  const canMakePdf = editing || (company !== null && template !== null);
+  const baseName = editingPdf?.companyName ?? company?.name ?? "Quotation";
+  const suggestedName = nextPdfName(
+    baseName,
+    (savedPdfs ?? []).map((pdf) => pdf.name),
+  );
 
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-2">
@@ -152,7 +192,11 @@ export function EditorTopBar({
           Add company
         </Link>
       ) : (
-        <Select value={company?.id ?? ""} onValueChange={changeCompany} disabled={busy !== null}>
+        <Select
+          value={company?.id ?? ""}
+          onValueChange={changeCompany}
+          disabled={busy !== null || editing}
+        >
           <SelectTrigger aria-label="Company" className="w-48">
             <SelectValue placeholder="Pick a company" />
           </SelectTrigger>
@@ -177,7 +221,7 @@ export function EditorTopBar({
             const next = templates.find((item) => item.id === templateId);
             if (next && next.id !== template?.id) setPendingTemplate(next);
           }}
-          disabled={busy !== null}
+          disabled={busy !== null || editing}
         >
           <SelectTrigger aria-label="Template" className="w-48">
             <SelectValue placeholder="Pick a template" />
@@ -192,32 +236,35 @@ export function EditorTopBar({
         </Select>
       )}
 
-      <Select value={font.key} onValueChange={changeFont} disabled={busy !== null || !company}>
-        <SelectTrigger
-          aria-label="Font"
-          className="w-48"
-          style={{ fontFamily: fontStack(font) }}
-          title={company ? undefined : "Add a company to choose its font."}
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {FONTS.map((item) => (
-            <SelectItem key={item.key} value={item.key} style={{ fontFamily: fontStack(item) }}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <SavedPdfsMenu
+        tenderId={tender.id}
+        pdfs={savedPdfs}
+        editingId={tender.editingPdfId}
+        disabled={busy !== null || saving || making}
+        onEdit={editPdfNow}
+      />
+
+      {editing && (
+        <span className="flex max-w-72 items-center gap-1.5 rounded-full bg-info-soft py-0.5 pr-0.5 pl-2.5 text-xs text-info">
+          <PencilLine className="size-3.5 shrink-0" aria-hidden />
+          <span className="min-w-0 truncate" title={editingPdf?.name}>
+            Editing “{editingPdf?.name ?? "saved PDF"}”
+          </span>
+          <Button
+            variant="outline"
+            size="xs"
+            className="h-6 rounded-full bg-card"
+            disabled={busy !== null || saving}
+            onClick={stopEditing}
+          >
+            Done
+          </Button>
+        </span>
+      )}
 
       <div className="ml-auto flex items-center gap-3">
         <span role="status" className="flex items-center gap-1.5 text-xs">
-          {busy !== null || saveStatus === "saving" ? (
-            <>
-              <Loader2 className="size-3.5 animate-spin text-muted-foreground" aria-hidden />
-              <span className="text-muted-foreground">Saving…</span>
-            </>
-          ) : saveStatus === "failed" ? (
+          {saveStatus === "failed" && (
             <>
               <CircleAlert className="size-3.5 text-destructive" aria-hidden />
               <span className="text-destructive">Not saved</span>
@@ -230,8 +277,6 @@ export function EditorTopBar({
                 Retry
               </Button>
             </>
-          ) : (
-            <span className="text-muted-foreground">Saved</span>
           )}
         </span>
         {!canMakePdf && (
@@ -241,8 +286,19 @@ export function EditorTopBar({
         )}
         <span>
           <Button
+            variant="outline"
             aria-describedby={canMakePdf ? undefined : "pdf-needs"}
-            disabled={!canMakePdf || making || busy !== null}
+            disabled={!canMakePdf || making || saving || busy !== null}
+            onClick={openSaveDialog}
+          >
+            {saving ? <Spinner aria-hidden /> : <Save aria-hidden />}
+            {saving ? "Saving PDF…" : "Save"}
+          </Button>
+        </span>
+        <span>
+          <Button
+            aria-describedby={canMakePdf ? undefined : "pdf-needs"}
+            disabled={!canMakePdf || making || saving || busy !== null}
             onClick={() => void generatePdf()}
           >
             {making ? <Spinner aria-hidden /> : <FileDown aria-hidden />}
@@ -250,6 +306,16 @@ export function EditorTopBar({
           </Button>
         </span>
       </div>
+
+      <SavePdfDialog
+        key={dialogKey}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        editing={editingPdf ? { id: editingPdf.id, name: editingPdf.name } : null}
+        suggestedName={suggestedName}
+        busy={saving}
+        onSave={(choice, name) => void saveCurrentPdf(choice, name)}
+      />
 
       <AlertDialog
         open={pendingTemplate !== null}
