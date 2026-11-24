@@ -1,6 +1,6 @@
 import { PDFDocument } from "pdf-lib";
-import { type Browser, type BrowserContext, chromium } from "playwright-core";
-import { unavailable } from "@/server/errors";
+import { type Browser, type BrowserContext, chromium, type Page } from "playwright-core";
+import { isAppError, unavailable } from "@/server/errors";
 import { stripScripts } from "@/shared/fill-template";
 
 const BROWSER_CHANNELS = ["msedge", "chrome"] as const;
@@ -10,7 +10,7 @@ const TOO_LONG = "The PDF took too long. Please try again.";
 const NO_PRINTER = "The PDF printer couldn't start. Please try again in a minute.";
 const NO_LOCAL_BROWSER = "Microsoft Edge or Google Chrome is needed to print PDFs.";
 
-let browserPromise: Promise<Browser> | null = null;
+let printerPromise: Promise<Printer> | null = null;
 
 function runsOnVercel(): boolean {
   return process.env.VERCEL === "1";
@@ -57,8 +57,12 @@ async function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
   }
 }
 
-async function printPage(context: BrowserContext, html: string): Promise<Uint8Array> {
-  const page = await context.newPage();
+interface Printer {
+  browser: Browser;
+  context: BrowserContext;
+}
+
+async function printPage(page: Page, html: string): Promise<Uint8Array> {
   await page.route("**/*", (route) =>
     route.request().url().startsWith("data:") ? route.continue() : route.abort(),
   );
@@ -67,28 +71,66 @@ async function printPage(context: BrowserContext, html: string): Promise<Uint8Ar
   return new Uint8Array(pdf);
 }
 
-async function getBrowser(): Promise<Browser> {
-  browserPromise ??= launchBrowser().then((browser) => {
-    browser.on("disconnected", () => {
-      browserPromise = null;
-    });
-    return browser;
-  });
+async function startPrinter(): Promise<Printer> {
+  const browser = await launchBrowser();
   try {
-    return await browserPromise;
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    return { browser, context };
   } catch (error) {
-    browserPromise = null;
+    await browser.close().catch(() => undefined);
+    throw unavailable(NO_PRINTER, error);
+  }
+}
+
+async function getPrinter(): Promise<Printer> {
+  if (!printerPromise) {
+    const started = startPrinter();
+    printerPromise = started;
+    void started
+      .then((printer) =>
+        printer.browser.on("disconnected", () => {
+          if (printerPromise === started) printerPromise = null;
+        }),
+      )
+      .catch(() => undefined);
+  }
+  const current = printerPromise;
+  try {
+    return await current;
+  } catch (error) {
+    if (printerPromise === current) printerPromise = null;
     throw error;
   }
 }
 
-export async function printHtmlToPdf(html: string): Promise<Uint8Array> {
-  const browser = await getBrowser();
-  const context = await browser.newContext({ javaScriptEnabled: false });
+async function dropPrinter(): Promise<void> {
+  const current = printerPromise;
+  printerPromise = null;
+  const printer = await current?.catch(() => null);
+  if (printer) await printer.browser.close().catch(() => undefined);
+}
+
+function timedOut(error: unknown): boolean {
+  return isAppError(error) && error.message === TOO_LONG;
+}
+
+async function printOnce(html: string): Promise<Uint8Array> {
+  const { context } = await getPrinter();
+  const page = await context.newPage();
   try {
-    return await withTimeout(printPage(context, html), PRINT_TIMEOUT_MS);
+    return await withTimeout(printPage(page, html), PRINT_TIMEOUT_MS);
   } finally {
-    await context.close();
+    await page.close().catch(() => undefined);
+  }
+}
+
+export async function printHtmlToPdf(html: string): Promise<Uint8Array> {
+  try {
+    return await printOnce(html);
+  } catch (error) {
+    await dropPrinter();
+    if (timedOut(error)) throw error;
+    return printOnce(html);
   }
 }
 

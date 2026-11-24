@@ -4,6 +4,10 @@ All notable changes to this project are recorded here (newest first).
 
 ## [Unreleased]
 
+### Fixed
+
+- 2026-11-24: PDFs failed on Vercel ("Target page, context or browser has been closed" or "The PDF took too long"): serverless Chromium runs `--single-process`, so closing a browser context after the first of the two prints broke the browser for the second. The printer now keeps one context and closes only pages; after any failure it closes the browser and starts fresh, retrying once unless the print timed out. (`src/server/adapters/pdf-printer.ts`)
+
 ### Added
 
 - 2026-11-23: Spec 10 name and edit saved PDFs: Save opens a "Save PDF" box with a Name field (filled with the suggested name; empty uses it). Every save now also keeps a copy of what made it (values, page text, canvas, font, and copies of the letterhead, seal, template text and images). Each row in Saved PDFs has Open and Edit; Edit (after asking) loads that copy into the editor with its own letterhead, seal and font, locks Company and Template, hides Reset template text and shows "Editing “…” · Done"; Save then offers Replace (same entry, new file, old files removed after commit) or Save as a new PDF (editing moves to it). PDFs saved before this show Edit greyed out. New `saved_pdf.snapshot`/`edited_at`, table `saved_pdf_file`, `tender.editing_pdf_id` (migration `0008_saved-pdf-edit`); `PUT /api/tenders/[id]/saved-pdfs/[pdfId]`, `POST …/[pdfId]/edit`, `GET …/[pdfId]/parts/[kind]`; PATCH takes `editingPdfId: null`. PDFs print from `loadParts` (company/template now, or the saved copy while editing). (`src/shared/{pdf-name,pdf-body,tender-body,dto}.ts`, `src/types.ts`, `src/server/schema.ts`, `src/repositories/{saved-pdf,tender,tender-image}.repository.ts`, `src/services/{pdf-parts,tender-pdf,saved-pdf,tender}.service.ts`, `src/app/api/tenders/[id]/saved-pdfs/**`, `src/lib/{saved-pdfs,editor}.ts`, `src/components/editor/{save-pdf-dialog,saved-pdfs-menu,editor-top-bar,editor-page,page-preview}.tsx`, `tests/integration/{saved-pdf-edit,saved-pdfs}.test.ts`, `tests/unit/saved-pdf-name.test.ts`)
